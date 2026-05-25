@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:jeiqidb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+game:
+  move-timeout-seconds: 60
+  network-delay-tolerance-ms: 5000
+  no-capture-draw-rounds: 40
+  max-repeated-check: 6

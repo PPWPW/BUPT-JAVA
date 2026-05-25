@@ -1,0 +1,11 @@
+com\jeiqi\repository\NotationRepositoryTest.class
+com\jeiqi\service\NotationServiceTest.class
+com\jeiqi\controller\UserControllerTest.class
+com\jeiqi\engine\MoveGeneratorTest.class
+com\jeiqi\model\ChessBoardTest.class
+com\jeiqi\model\PositionTest.class
+com\jeiqi\service\GameServiceTest.class
+com\jeiqi\engine\RuleEngineTest.class
+com\jeiqi\repository\GameRepositoryTest.class
+com\jeiqi\repository\UserRepositoryTest.class
+com\jeiqi\service\MatchmakingServiceTest.class
