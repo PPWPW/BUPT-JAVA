@@ -4,13 +4,14 @@ import { useGameStore } from '../stores/gameStore'
 export function useWebSocket() {
   const gameStore = useGameStore()
 
-  function connect(userId: string) {
+  function connect(userId: string, onConnect?: () => void) {
     socketService.setMessageHandler((msg) => {
       gameStore.updateFromServer(msg)
     })
 
     socketService.connect(userId, () => {
       console.log('WebSocket connected')
+      if (onConnect) onConnect()
     })
   }
 

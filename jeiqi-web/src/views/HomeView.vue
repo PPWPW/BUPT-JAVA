@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useGameStore } from '../stores/gameStore'
@@ -54,21 +54,17 @@ async function submitAuth(mode: 'login' | 'register') {
 
 function onMatch() {
   if (!userStore.userId) return
-  ws.connect(userStore.userId!)
-
-  const checkConnected = setInterval(() => {
+  ws.connect(userStore.userId!, () => {
     ws.joinQueue()
-
-    const stop = setInterval(() => {
-      if (gameStore.gameId && gameStore.status === 'PLAYING') {
-        clearInterval(stop)
-        clearInterval(checkConnected)
-        ws.subscribeGame(gameStore.gameId!)
-        router.push(`/game/${gameStore.gameId}`)
-      }
-    }, 500)
-  }, 1000)
+  })
 }
+
+watch(() => gameStore.gameId, (newId) => {
+  if (newId && gameStore.status === 'PLAYING') {
+    ws.subscribeGame(newId)
+    router.push(`/game/${newId}`)
+  }
+})
 
 function onCancelMatch() {
   ws.leaveQueue()
