@@ -1,8 +1,10 @@
 import { socketService } from '../services/socket'
 import { useGameStore } from '../stores/gameStore'
+import { useUserStore } from '../stores/userStore'
 
 export function useWebSocket() {
   const gameStore = useGameStore()
+  const userStore = useUserStore()
 
   function connect(userId: string, onConnect?: () => void) {
     socketService.setMessageHandler((msg) => {
@@ -17,14 +19,14 @@ export function useWebSocket() {
 
   function joinQueue() {
     socketService.send('/app/join', {
-      playerId: '',
-      payload: {},
+      playerId: userStore.userId || '',
+      payload: { username: userStore.username || 'Unknown' },
     })
   }
 
   function leaveQueue() {
     socketService.send('/app/leave', {
-      playerId: '',
+      playerId: userStore.userId || '',
       payload: {},
     })
   }
@@ -32,7 +34,7 @@ export function useWebSocket() {
   function makeMove(source: string, destination: string) {
     socketService.send('/app/move', {
       gameId: gameStore.gameId,
-      playerId: '',
+      playerId: userStore.userId || '',
       payload: { source, destination },
     })
   }
@@ -40,7 +42,7 @@ export function useWebSocket() {
   function resign() {
     socketService.send('/app/resign', {
       gameId: gameStore.gameId,
-      playerId: '',
+      playerId: userStore.userId || '',
       payload: {},
     })
   }
@@ -48,7 +50,7 @@ export function useWebSocket() {
   function requestDraw(accept: boolean) {
     socketService.send('/app/draw', {
       gameId: gameStore.gameId,
-      playerId: '',
+      playerId: userStore.userId || '',
       payload: { accept },
     })
   }
