@@ -65,16 +65,35 @@ function canMoveTo(col: number, row: number, side: string, pieces: ChessPiece[])
   return { col, row }
 }
 
-function getHiddenMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[]): { col: number; row: number }[] {
-  const moves: { col: number; row: number }[] = []
-  for (let dc = -1; dc <= 1; dc++) {
-    for (let dr = -1; dr <= 1; dr++) {
-      if (dc === 0 && dr === 0) continue
-      const m = canMoveTo(pos.col + dc, pos.row + dr, side, pieces)
-      if (m) moves.push(m)
-    }
+function getInitialPieceType(col: number, row: number): string | null {
+  const normRow = row >= 5 ? 9 - row : row
+  if (normRow === 0) {
+    if (col === 0 || col === 8) return 'CHARIOT'
+    if (col === 1 || col === 7) return 'HORSE'
+    if (col === 2 || col === 6) return 'ELEPHANT'
+    if (col === 3 || col === 5) return 'ADVISOR'
+    if (col === 4) return 'KING'
+  } else if (normRow === 2) {
+    if (col === 1 || col === 7) return 'CANNON'
+  } else if (normRow === 3) {
+    if (col === 0 || col === 2 || col === 4 || col === 6 || col === 8) return 'PAWN'
   }
-  return moves
+  return null
+}
+
+function getHiddenMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[]): { col: number; row: number }[] {
+  const type = getInitialPieceType(pos.col, pos.row)
+  if (!type) return []
+  switch (type) {
+    case 'KING': return getKingMoves(pos, side, pieces)
+    case 'CHARIOT': return getChariotMoves(pos, side, pieces)
+    case 'HORSE': return getHorseMoves(pos, side, pieces)
+    case 'CANNON': return getCannonMoves(pos, side, pieces)
+    case 'PAWN': return getPawnMoves(pos, side, pieces)
+    case 'ADVISOR': return getAdvisorMoves(pos, side, pieces)
+    case 'ELEPHANT': return getElephantMoves(pos, side, pieces)
+    default: return []
+  }
 }
 
 function getKingMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[]): { col: number; row: number }[] {
