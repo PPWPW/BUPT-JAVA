@@ -26,39 +26,34 @@ class MoveGeneratorTest {
     }
 
     @Test
-    void hiddenPieceShouldMoveOneStepInAllDirections() {
-        Position pos = new Position(4, 3);
-        List<Position> moves = gen.getLegalMoves(board, pos);
-        assertTrue(moves.size() >= 5, "Hidden piece at center should have at least 5 moves");
-        for (Position to : moves) {
-            int dc = Math.abs(to.getCol() - pos.getCol());
-            int dr = Math.abs(to.getRow() - pos.getRow());
-            assertTrue(dc <= 1 && dr <= 1 && (dc + dr > 0),
-                "Hidden piece should move at most one step, got " + to);
-        }
-    }
-
-    @Test
-    void hiddenPieceAtEdgeShouldHaveFewerMoves() {
+    void hiddenPieceAtChariotPosShouldMoveLikeChariot() {
+        board = new ChessBoard();
         Position pos = new Position(0, 0);
+        board.setPieceAt(pos, new ChessPiece(null, Side.RED, pos, false));
         List<Position> moves = gen.getLegalMoves(board, pos);
-        assertFalse(moves.isEmpty(), "Should have some moves even at corner");
-        for (Position to : moves) {
-            assertTrue(board.isPositionValid(to), "All moves should be valid");
-        }
+        assertTrue(moves.contains(new Position(0, 9)), "Chariot dark piece should reach top-left");
+        assertTrue(moves.contains(new Position(8, 0)), "Chariot dark piece should reach bottom-right");
     }
 
     @Test
-    void hiddenPieceShouldNotMoveOntoOwnPiece() {
-        Position pos = new Position(4, 2);
+    void hiddenPieceAtHorsePosShouldMoveLikeHorse() {
+        board = new ChessBoard();
+        Position pos = new Position(1, 0);
+        board.setPieceAt(pos, new ChessPiece(null, Side.RED, pos, false));
         List<Position> moves = gen.getLegalMoves(board, pos);
-        for (Position to : moves) {
-            ChessPiece target = board.getPieceAt(to);
-            if (target != null) {
-                assertNotEquals(Side.RED, target.getSide(),
-                    "Should not move onto own piece at " + to);
-            }
-        }
+        assertTrue(moves.contains(new Position(0, 2)), "Horse dark piece L-move");
+        assertTrue(moves.contains(new Position(2, 2)), "Horse dark piece L-move");
+        assertEquals(2, moves.size(), "Horse dark piece should have exactly 2 moves from (1,0)");
+    }
+
+    @Test
+    void hiddenPieceAtPawnPosShouldMoveLikePawn() {
+        board = new ChessBoard();
+        Position pos = new Position(0, 3);
+        board.setPieceAt(pos, new ChessPiece(null, Side.RED, pos, false));
+        List<Position> moves = gen.getLegalMoves(board, pos);
+        assertTrue(moves.contains(new Position(0, 4)), "Red Pawn dark piece moves forward 1 step");
+        assertEquals(1, moves.size(), "Red Pawn dark piece before crossing river should have exactly 1 move");
     }
 
     @Test
