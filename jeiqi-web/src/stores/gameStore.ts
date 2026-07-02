@@ -41,18 +41,30 @@ export const useGameStore = defineStore('game', () => {
         break
       case 'GAME_START':
         currentTurn.value = p.turn as Side
+        if (p.pieces) {
+          pieces.value = p.pieces
+        }
         break
       case 'MOVE_RESULT':
         if (p.move) {
+          const moveStr = p.move as string
+          const src = moveStr.slice(0, 2)
+          const dst = moveStr.slice(2, 4)
           moveHistory.value.push({
-            source: (p.move as string).slice(0, 2),
-            destination: (p.move as string).slice(2, 4),
+            source: src,
+            destination: dst,
             type: p.revealedType ? 1 : null,
             moveNumber: moveHistory.value.length + 1,
             side: currentTurn.value,
-            revealMove: false,
-            notation: p.move as string,
+            revealMove: src === dst,
+            notation: moveStr,
           })
+        }
+        if (p.pieces) {
+          pieces.value = p.pieces
+        }
+        if (p.capturedPieces) {
+          capturedPieces.value = p.capturedPieces
         }
         break
       case 'TURN_NOTIFY':

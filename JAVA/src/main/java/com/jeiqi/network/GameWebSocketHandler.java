@@ -55,9 +55,9 @@ public class GameWebSocketHandler {
                     Map.of("gameId", game.getId(), "side", "BLACK"));
 
                 notifyPlayer(game.getRedPlayer().getId(), MessageType.GAME_START,
-                    Map.of("gameId", game.getId(), "turn", "RED"));
+                    Map.of("gameId", game.getId(), "turn", "RED", "pieces", getPiecesList(game)));
                 notifyPlayer(game.getBlackPlayer().getId(), MessageType.GAME_START,
-                    Map.of("gameId", game.getId(), "turn", "RED"));
+                    Map.of("gameId", game.getId(), "turn", "RED", "pieces", getPiecesList(game)));
             }
         }
     }
@@ -93,7 +93,9 @@ public class GameWebSocketHandler {
             msg.getGameId(), msg.getPlayerId(), Map.of(
                 "move", move.getSource() + move.getDestination(),
                 "captured", result.isCaptured(),
-                "revealedType", result.getRevealedType() != null ? result.getRevealedType().name() : null
+                "revealedType", result.getRevealedType() != null ? result.getRevealedType().name() : null,
+                "pieces", game != null ? getPiecesList(game) : java.util.Collections.emptyList(),
+                "capturedPieces", game != null ? getCapturedPiecesList(game) : java.util.Collections.emptyList()
             ));
         notifyGame(msg.getGameId(), moveResultMsg);
 
@@ -111,6 +113,39 @@ public class GameWebSocketHandler {
                 msg.getGameId(), null, Map.of("turn", game.getCurrentTurn().name()));
             notifyGame(msg.getGameId(), turnMsg);
         }
+    }
+
+    private java.util.List<Map<String, Object>> getPiecesList(Game game) {
+        java.util.List<Map<String, Object>> list = new java.util.ArrayList<>();
+        com.jeiqi.model.ChessBoard board = game.getBoard();
+        for (int r = 0; r < com.jeiqi.model.ChessBoard.ROWS; r++) {
+            for (int c = 0; c < com.jeiqi.model.ChessBoard.COLS; c++) {
+                com.jeiqi.model.ChessPiece piece = board.getPieceAt(c, r);
+                if (piece != null && piece.isAlive()) {
+                    list.add(Map.of(
+                        "type", piece.isRevealed() ? piece.getType().name() : null,
+                        "side", piece.getSide().name(),
+                        "revealed", piece.isRevealed(),
+                        "position", Map.of("col", piece.getPosition().getCol(), "row", piece.getPosition().getRow()),
+                        "alive", piece.isAlive()
+                    ));
+                }
+            }
+        }
+        return list;
+    }
+
+    private java.util.List<Map<String, Object>> getCapturedPiecesList(Game game) {
+        java.util.List<Map<String, Object>> list = new java.util.ArrayList<>();
+        for (com.jeiqi.model.ChessPiece piece : game.getBoard().getCapturedPieces()) {
+            list.add(Map.of(
+                "type", piece.isRevealed() ? piece.getType().name() : null,
+                "side", piece.getSide().name(),
+                "revealed", piece.isRevealed(),
+                "alive", false
+            ));
+        }
+        return list;
     }
 
     @MessageMapping("/resign")
