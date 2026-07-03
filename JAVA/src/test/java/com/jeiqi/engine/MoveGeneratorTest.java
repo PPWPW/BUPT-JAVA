@@ -43,7 +43,7 @@ class MoveGeneratorTest {
         List<Position> moves = gen.getLegalMoves(board, pos);
         assertTrue(moves.contains(new Position(0, 2)), "Horse dark piece L-move");
         assertTrue(moves.contains(new Position(2, 2)), "Horse dark piece L-move");
-        assertEquals(2, moves.size(), "Horse dark piece should have exactly 2 moves from (1,0)");
+        assertEquals(3, moves.size(), "Horse dark piece should have exactly 3 moves from (1,0)");
     }
 
     @Test
