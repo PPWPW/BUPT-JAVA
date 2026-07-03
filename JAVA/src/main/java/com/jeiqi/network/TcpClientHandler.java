@@ -81,12 +81,11 @@ public class TcpClientHandler implements Runnable {
                     send(new GameMessage(MessageType.ERROR, msg.getGameId(),
                         msg.getPlayerId(), Map.of("message", result.getErrorMessage())));
                 } else {
+                    java.util.Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("captured", result.isCaptured());
+                    response.put("revealedType", result.getRevealedType() != null ? result.getRevealedType().name() : null);
                     send(new GameMessage(MessageType.MOVE_RESULT, msg.getGameId(),
-                        msg.getPlayerId(), Map.of(
-                            "captured", result.isCaptured(),
-                            "revealedType",
-                            result.getRevealedType() != null ? result.getRevealedType().name() : null
-                        )));
+                        msg.getPlayerId(), response));
                 }
             }
             default -> send(new GameMessage(MessageType.ERROR, null, null,

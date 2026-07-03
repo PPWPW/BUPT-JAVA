@@ -27,14 +27,14 @@ public class GameController {
         if (game == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(Map.of(
-            "id", game.getId(),
-            "status", game.getStatus().name(),
-            "redPlayer", game.getRedPlayerName(),
-            "blackPlayer", game.getBlackPlayerName(),
-            "currentTurn", game.getCurrentTurn().name(),
-            "winner", game.getWinner() != null ? game.getWinner().name() : null,
-            "moves", game.getMoveHistory().size()
-        ));
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id", game.getId());
+        response.put("status", game.getStatus().name());
+        response.put("redPlayer", game.getRedPlayerName());
+        response.put("blackPlayer", game.getBlackPlayerName());
+        response.put("currentTurn", game.getCurrentTurn() != null ? game.getCurrentTurn().name() : null);
+        response.put("winner", game.getWinner() != null ? game.getWinner().name() : null);
+        response.put("moves", game.getMoveHistory().size());
+        return ResponseEntity.ok(response);
     }
 }

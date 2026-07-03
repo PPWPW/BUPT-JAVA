@@ -13,6 +13,15 @@ export function useGame() {
     ) || null
 
     if (board.selectedPiece.value) {
+      if (!board.selectedPiece.value.revealed &&
+          board.selectedPiece.value.position.col === col &&
+          board.selectedPiece.value.position.row === row) {
+        const from = board.posToAlgebraic(col, row)
+        ws.makeMove(from, from)
+        board.clearSelection()
+        return
+      }
+
       const isLegal = board.legalTargets.value.some(m => m.col === col && m.row === row)
       if (isLegal) {
         const from = board.posToAlgebraic(board.selectedPiece.value.position.col, board.selectedPiece.value.position.row)

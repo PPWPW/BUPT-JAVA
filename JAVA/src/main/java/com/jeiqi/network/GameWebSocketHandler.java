@@ -90,7 +90,7 @@ public class GameWebSocketHandler {
         }
 
         GameMessage moveResultMsg = new GameMessage(MessageType.MOVE_RESULT,
-            msg.getGameId(), msg.getPlayerId(), Map.of(
+            msg.getGameId(), msg.getPlayerId(), createMap(
                 "move", move.getSource() + move.getDestination(),
                 "captured", result.isCaptured(),
                 "revealedType", result.getRevealedType() != null ? result.getRevealedType().name() : null,
@@ -101,7 +101,7 @@ public class GameWebSocketHandler {
 
         if (result.isGameOver()) {
             GameMessage gameOverMsg = new GameMessage(MessageType.GAME_OVER,
-                msg.getGameId(), null, Map.of(
+                msg.getGameId(), null, createMap(
                     "winner", result.getGameResult().getWinner() != null
                         ? result.getGameResult().getWinner().name() : null,
                     "reason", result.getGameResult().getReason().name(),
@@ -122,7 +122,7 @@ public class GameWebSocketHandler {
             for (int c = 0; c < com.jeiqi.model.ChessBoard.COLS; c++) {
                 com.jeiqi.model.ChessPiece piece = board.getPieceAt(c, r);
                 if (piece != null && piece.isAlive()) {
-                    list.add(Map.of(
+                    list.add(createMap(
                         "type", piece.isRevealed() ? piece.getType().name() : null,
                         "side", piece.getSide().name(),
                         "revealed", piece.isRevealed(),
@@ -138,7 +138,7 @@ public class GameWebSocketHandler {
     private java.util.List<Map<String, Object>> getCapturedPiecesList(Game game) {
         java.util.List<Map<String, Object>> list = new java.util.ArrayList<>();
         for (com.jeiqi.model.ChessPiece piece : game.getBoard().getCapturedPieces()) {
-            list.add(Map.of(
+            list.add(createMap(
                 "type", piece.isRevealed() ? piece.getType().name() : null,
                 "side", piece.getSide().name(),
                 "revealed", piece.isRevealed(),
@@ -146,6 +146,14 @@ public class GameWebSocketHandler {
             ));
         }
         return list;
+    }
+
+    private Map<String, Object> createMap(Object... entries) {
+        Map<String, Object> map = new java.util.HashMap<>();
+        for (int i = 0; i < entries.length; i += 2) {
+            map.put((String) entries[i], entries[i + 1]);
+        }
+        return map;
     }
 
     @MessageMapping("/resign")
