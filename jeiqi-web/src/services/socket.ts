@@ -8,6 +8,9 @@ class SocketService {
     const wsUrl = `ws://${window.location.hostname}:8080/ws`
     this.client = new Client({
       brokerURL: wsUrl,
+      connectHeaders: {
+        userId: userId,
+      },
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
