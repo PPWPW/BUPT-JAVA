@@ -19,6 +19,10 @@ public class RuleEngine {
         this.moveGenerator = moveGenerator;
     }
 
+    public MoveGenerator getMoveGenerator() {
+        return moveGenerator;
+    }
+
     public MoveResult validateMove(Game game, Move move) {
         ChessBoard board = game.getBoard();
         Side currentTurn = game.getCurrentTurn();
@@ -50,10 +54,7 @@ public class RuleEngine {
         ChessPiece target = board.getPieceAt(to);
 
         if (from.equals(to)) {
-            if (piece.isRevealed()) {
-                return MoveResult.invalid("该棋子已经翻明，不能原地翻面");
-            }
-            return MoveResult.success(false, null);
+            return MoveResult.invalid("不允许原地翻子");
         }
 
         if (target != null && target.getSide() == currentTurn) {
@@ -71,35 +72,27 @@ public class RuleEngine {
     public GameResult checkGameOver(Game game) {
         ChessBoard board = game.getBoard();
 
+        // 1. King Captured
         GameResult kingResult = checkKingCaptured(board);
         if (kingResult != null) return kingResult;
 
         Side currentTurn = game.getCurrentTurn();
 
-        if (isInCheck(board, currentTurn)) {
-            if (!hasEscapeMove(board, currentTurn)) {
-                Side winner = (currentTurn == Side.RED) ? Side.BLACK : Side.RED;
-                return GameResult.win(winner, GameResult.EndReason.CHECKMATE);
-            }
-        } else {
-            if (!moveGenerator.hasAnyLegalMove(board, currentTurn)) {
-                Side winner = (currentTurn == Side.RED) ? Side.BLACK : Side.RED;
-                return GameResult.win(winner, GameResult.EndReason.STALEMATE);
-            }
+        // 2. Stalemate (困毙) - No legal moves at all for the current player
+        if (!moveGenerator.hasAnyLegalMove(board, currentTurn)) {
+            Side winner = (currentTurn == Side.RED) ? Side.BLACK : Side.RED;
+            return GameResult.win(winner, GameResult.EndReason.STALEMATE);
         }
 
-        if (game.getMovesWithoutCapture() >= 40) {
+        // 3. 40-move rule without capture (40回合无吃子和棋，共80步)
+        if (game.getMovesWithoutCapture() >= 80) {
             return GameResult.draw(GameResult.EndReason.NO_CAPTURE_DRAW);
         }
 
-        if (game.getRepeatedCheckCount() >= 6) {
+        // 4. Perpetual check/catch (长将/长捉) - If the player who just moved reached 6 repeated checks/catches
+        if (game.getRepeatedCheckCount(currentTurn) >= 6) {
             Side winner = (currentTurn == Side.RED) ? Side.BLACK : Side.RED;
             return GameResult.win(winner, GameResult.EndReason.PERPETUAL_CHECK);
-        }
-
-        if (isKingsFacing(board)) {
-            Side winner = (currentTurn == Side.RED) ? Side.BLACK : Side.RED;
-            return GameResult.win(winner, GameResult.EndReason.CHECKMATE);
         }
 
         return null;

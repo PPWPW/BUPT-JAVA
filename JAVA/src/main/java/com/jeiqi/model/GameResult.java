@@ -4,7 +4,7 @@ public class GameResult {
 
     public enum EndReason {
         CHECKMATE, STALEMATE, KING_CAPTURED, TIMEOUT, RESIGN,
-        NO_CAPTURE_DRAW, PERPETUAL_CHECK
+        NO_CAPTURE_DRAW, PERPETUAL_CHECK, DRAW_AGREED, DISCONNECT
     }
 
     private final boolean draw;

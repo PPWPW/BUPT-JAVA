@@ -1,6 +1,6 @@
-export type Side = 'RED' | 'BLACK'
+export type Side = 'red' | 'black'
 
-export type PieceType = 'KING' | 'CHARIOT' | 'HORSE' | 'CANNON' | 'PAWN' | 'ADVISOR' | 'ELEPHANT'
+export type PieceType = 'king' | 'rook' | 'knight' | 'cannon' | 'pawn' | 'guard' | 'bishop'
 
 export interface Position {
   col: number
@@ -42,21 +42,21 @@ export interface GameState {
 }
 
 export const PIECE_NAMES: Record<string, string> = {
-  KING: '将',
-  CHARIOT: '车',
-  HORSE: '马',
-  CANNON: '炮',
-  PAWN: '兵',
-  ADVISOR: '士',
-  ELEPHANT: '象',
+  king: '帅',
+  rook: '车',
+  knight: '马',
+  cannon: '炮',
+  pawn: '兵',
+  guard: '仕',
+  bishop: '相',
 }
 
 export const PIECE_NAMES_BLACK: Record<string, string> = {
-  KING: '帅',
-  CHARIOT: '車',
-  HORSE: '馬',
-  CANNON: '砲',
-  PAWN: '卒',
-  ADVISOR: '仕',
-  ELEPHANT: '相',
+  king: '将',
+  rook: '车',
+  knight: '马',
+  cannon: '炮',
+  pawn: '卒',
+  guard: '士',
+  bishop: '象',
 }

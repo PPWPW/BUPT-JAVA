@@ -71,7 +71,7 @@ class RuleEngineTest {
     }
 
     @Test
-    void validateMoveShouldAllowRevealInPlace() {
+    void validateMoveShouldRejectRevealInPlace() {
         Position pos = new Position(4, 3);
         ChessPiece piece = game.getBoard().getPieceAt(pos);
         assertNotNull(piece);
@@ -80,16 +80,17 @@ class RuleEngineTest {
         Move move = new Move("e3", "e3", null, Side.RED);
         move.setSide(Side.RED);
         MoveResult result = engine.validateMove(game, move);
-        assertTrue(result.isValid(),
-            "Reveal in place should be valid for hidden piece, got: " + result.getErrorMessage());
+        assertFalse(result.isValid(), "In-place flips should be invalid");
+        assertEquals("不允许原地翻子", result.getErrorMessage());
     }
 
     @Test
-    void validateMoveShouldRejectRevealInPlaceForRevealedPiece() {
+    void validateMoveShouldRejectInPlaceForRevealedPiece() {
         Move move = new Move("e0", "e0", null, Side.RED);
         move.setSide(Side.RED);
         MoveResult result = engine.validateMove(game, move);
-        assertFalse(result.isValid(), "Reveal in place should be rejected for revealed piece");
+        assertFalse(result.isValid(), "In-place flips should be invalid for revealed piece");
+        assertEquals("不允许原地翻子", result.getErrorMessage());
     }
 
     @Test
@@ -113,7 +114,7 @@ class RuleEngineTest {
         b.addToSideList(blackKing);
 
         GameResult result = engine.checkGameOver(g);
-        assertNotNull(result, "Should detect kings facing each other");
+        assertNull(result, "Should not end game automatically for kings facing each other");
     }
 
     @Test
@@ -156,9 +157,22 @@ class RuleEngineTest {
 
         g.setCurrentTurn(Side.RED);
         GameResult result = engine.checkGameOver(g);
-        assertNotNull(result, "Red king should be checkmated by two chariots, but got null");
+        assertNull(result, "Should not end game automatically for checkmate");
+    }
+
+    @Test
+    void checkGameOverShouldDetectKingCaptured() {
+        Game g = createEmptyGame();
+        ChessBoard b = g.getBoard();
+
+        ChessPiece redKing = new ChessPiece(PieceType.KING, Side.RED, new Position(4, 0), true);
+        b.setPieceAt(new Position(4, 0), redKing);
+        b.addToSideList(redKing);
+
+        GameResult result = engine.checkGameOver(g);
+        assertNotNull(result, "Should detect king captured when black king is dead/missing");
         assertFalse(result.isDraw(), "Should not be a draw");
-        assertEquals(Side.BLACK, result.getWinner());
+        assertEquals(Side.RED, result.getWinner());
     }
 
     @Test

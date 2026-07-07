@@ -7,43 +7,56 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class MatchmakingService {
 
-    private final ConcurrentLinkedQueue<Player> waitingQueue;
+    private final ConcurrentLinkedQueue<Player> tcpQueue;
+    private final ConcurrentLinkedQueue<Player> wsQueue;
     private final GameService gameService;
 
     public MatchmakingService(GameService gameService) {
-        this.waitingQueue = new ConcurrentLinkedQueue<>();
+        this.tcpQueue = new ConcurrentLinkedQueue<>();
+        this.wsQueue = new ConcurrentLinkedQueue<>();
         this.gameService = gameService;
     }
 
     public boolean joinQueue(Player player) {
-        boolean alreadyInQueue = waitingQueue.stream()
+        String clientType = "TCP".equals(player.getConnection()) ? "TCP" : "WS";
+        ConcurrentLinkedQueue<Player> queue = "TCP".equals(clientType) ? tcpQueue : wsQueue;
+        boolean alreadyInQueue = queue.stream()
             .anyMatch(p -> p.getId().equals(player.getId()));
         if (alreadyInQueue) {
             return false;
         }
-        waitingQueue.add(player);
+        queue.add(player);
         return true;
     }
 
     public boolean leaveQueue(String playerId) {
-        return waitingQueue.removeIf(p -> p.getId().equals(playerId));
+        boolean removedTcp = tcpQueue.removeIf(p -> p.getId().equals(playerId));
+        boolean removedWs = wsQueue.removeIf(p -> p.getId().equals(playerId));
+        return removedTcp || removedWs;
     }
 
     public Optional<String> tryMatch() {
-        if (waitingQueue.size() < 2) {
+        return tryMatch("WS");
+    }
+
+    public Optional<String> tryMatch(String clientType) {
+        ConcurrentLinkedQueue<Player> queue = "TCP".equals(clientType) ? tcpQueue : wsQueue;
+        if (queue.size() < 2) {
             return Optional.empty();
         }
 
-        Player player1 = waitingQueue.poll();
-        Player player2 = waitingQueue.poll();
+        Player player1 = queue.poll();
+        Player player2 = queue.poll();
 
         if (player2 == null) {
-            waitingQueue.add(player1);
+            if (player1 != null) {
+                queue.add(player1);
+            }
             return Optional.empty();
         }
 
         if (player1.getId().equals(player2.getId())) {
-            waitingQueue.add(player1);
+            queue.add(player1);
             return Optional.empty();
         }
 
@@ -52,6 +65,10 @@ public class MatchmakingService {
     }
 
     public int getQueueSize() {
-        return waitingQueue.size();
+        return tcpQueue.size() + wsQueue.size();
+    }
+
+    public int getQueueSize(String clientType) {
+        return "TCP".equals(clientType) ? tcpQueue.size() : wsQueue.size();
     }
 }

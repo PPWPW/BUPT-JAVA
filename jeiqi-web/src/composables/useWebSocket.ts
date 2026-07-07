@@ -18,40 +18,49 @@ export function useWebSocket() {
   }
 
   function joinQueue() {
-    socketService.send('/app/join', {
-      playerId: userStore.userId || '',
-      payload: { username: userStore.username || 'Unknown' },
+    socketService.send({
+      messageType: 'startMatch'
     })
   }
 
   function leaveQueue() {
-    socketService.send('/app/leave', {
-      playerId: userStore.userId || '',
-      payload: {},
+    socketService.send({
+      messageType: 'cancelMatch'
+    })
+  }
+
+  function sendReady() {
+    socketService.send({
+      messageType: 'Ready'
     })
   }
 
   function makeMove(source: string, destination: string) {
-    socketService.send('/app/move', {
-      gameId: gameStore.gameId,
-      playerId: userStore.userId || '',
-      payload: { source, destination },
+    const fromCol = source.charCodeAt(0) - 97
+    const fromRow = parseInt(source.substring(1))
+    const piece = gameStore.pieces.find(p => p.position.col === fromCol && p.position.row === fromRow)
+    const isFlip = piece ? !piece.revealed : false
+
+    socketService.send({
+      messageType: 'move',
+      fromX: source.charAt(0),
+      fromY: fromRow,
+      toX: destination.charAt(0),
+      toY: parseInt(destination.substring(1)),
+      isFlip: isFlip
     })
   }
 
   function resign() {
-    socketService.send('/app/resign', {
-      gameId: gameStore.gameId,
-      playerId: userStore.userId || '',
-      payload: {},
+    socketService.send({
+      messageType: 'Resign'
     })
   }
 
   function requestDraw(accept: boolean) {
-    socketService.send('/app/draw', {
-      gameId: gameStore.gameId,
-      playerId: userStore.userId || '',
-      payload: { accept },
+    socketService.send({
+      messageType: 'draw',
+      accept: accept
     })
   }
 
@@ -63,5 +72,5 @@ export function useWebSocket() {
     socketService.subscribeToGame(gameId)
   }
 
-  return { connect, joinQueue, leaveQueue, makeMove, resign, requestDraw, disconnect, subscribeGame }
+  return { connect, joinQueue, leaveQueue, sendReady, makeMove, resign, requestDraw, disconnect, subscribeGame }
 }

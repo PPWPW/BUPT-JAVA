@@ -13,13 +13,13 @@ export function useBoard() {
       return getHiddenMoves(pos, piece.side, allPieces)
     }
     switch (piece.type) {
-      case 'KING': return getKingMoves(pos, piece.side, allPieces)
-      case 'CHARIOT': return getChariotMoves(pos, piece.side, allPieces)
-      case 'HORSE': return getHorseMoves(pos, piece.side, allPieces)
-      case 'CANNON': return getCannonMoves(pos, piece.side, allPieces)
-      case 'PAWN': return getPawnMoves(pos, piece.side, allPieces)
-      case 'ADVISOR': return getAdvisorMoves(pos, piece.side, allPieces)
-      case 'ELEPHANT': return getElephantMoves(pos, piece.side, allPieces)
+      case 'king': return getKingMoves(pos, piece.side, allPieces)
+      case 'rook': return getChariotMoves(pos, piece.side, allPieces)
+      case 'knight': return getHorseMoves(pos, piece.side, allPieces)
+      case 'cannon': return getCannonMoves(pos, piece.side, allPieces)
+      case 'pawn': return getPawnMoves(pos, piece.side, allPieces)
+      case 'guard': return getAdvisorMoves(pos, piece.side, allPieces, false)
+      case 'bishop': return getElephantMoves(pos, piece.side, allPieces, false)
       default: return []
     }
   }
@@ -68,15 +68,15 @@ function canMoveTo(col: number, row: number, side: string, pieces: ChessPiece[])
 function getInitialPieceType(col: number, row: number): string | null {
   const normRow = row >= 5 ? 9 - row : row
   if (normRow === 0) {
-    if (col === 0 || col === 8) return 'CHARIOT'
-    if (col === 1 || col === 7) return 'HORSE'
-    if (col === 2 || col === 6) return 'ELEPHANT'
-    if (col === 3 || col === 5) return 'ADVISOR'
-    if (col === 4) return 'KING'
+    if (col === 0 || col === 8) return 'rook'
+    if (col === 1 || col === 7) return 'knight'
+    if (col === 2 || col === 6) return 'bishop'
+    if (col === 3 || col === 5) return 'guard'
+    if (col === 4) return 'king'
   } else if (normRow === 2) {
-    if (col === 1 || col === 7) return 'CANNON'
+    if (col === 1 || col === 7) return 'cannon'
   } else if (normRow === 3) {
-    if (col === 0 || col === 2 || col === 4 || col === 6 || col === 8) return 'PAWN'
+    if (col === 0 || col === 2 || col === 4 || col === 6 || col === 8) return 'pawn'
   }
   return null
 }
@@ -85,13 +85,13 @@ function getHiddenMoves(pos: { col: number; row: number }, side: string, pieces:
   const type = getInitialPieceType(pos.col, pos.row)
   if (!type) return []
   switch (type) {
-    case 'KING': return getKingMoves(pos, side, pieces)
-    case 'CHARIOT': return getChariotMoves(pos, side, pieces)
-    case 'HORSE': return getHorseMoves(pos, side, pieces)
-    case 'CANNON': return getCannonMoves(pos, side, pieces)
-    case 'PAWN': return getPawnMoves(pos, side, pieces)
-    case 'ADVISOR': return getAdvisorMoves(pos, side, pieces)
-    case 'ELEPHANT': return getElephantMoves(pos, side, pieces)
+    case 'king': return getKingMoves(pos, side, pieces)
+    case 'rook': return getChariotMoves(pos, side, pieces)
+    case 'knight': return getHorseMoves(pos, side, pieces)
+    case 'cannon': return getCannonMoves(pos, side, pieces)
+    case 'pawn': return getPawnMoves(pos, side, pieces)
+    case 'guard': return getAdvisorMoves(pos, side, pieces, true)
+    case 'bishop': return getElephantMoves(pos, side, pieces, true)
     default: return []
   }
 }
@@ -99,7 +99,7 @@ function getHiddenMoves(pos: { col: number; row: number }, side: string, pieces:
 function getKingMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[]): { col: number; row: number }[] {
   const moves: { col: number; row: number }[] = []
   const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]]
-  const [minR, maxR] = side === 'RED' ? [0, 2] : [7, 9]
+  const [minR, maxR] = side === 'red' ? [0, 2] : [7, 9]
   for (const [dc, dr] of dirs) {
     const col = pos.col + dc, row = pos.row + dr
     if (col < 3 || col > 5 || row < minR || row > maxR) continue
@@ -166,8 +166,8 @@ function getCannonMoves(pos: { col: number; row: number }, side: string, pieces:
 
 function getPawnMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[]): { col: number; row: number }[] {
   const moves: { col: number; row: number }[] = []
-  const forward = side === 'RED' ? 1 : -1
-  const crossed = side === 'RED' ? pos.row >= 5 : pos.row <= 4
+  const forward = side === 'red' ? 1 : -1
+  const crossed = side === 'red' ? pos.row >= 5 : pos.row <= 4
   const m = canMoveTo(pos.col, pos.row + forward, side, pieces)
   if (m) moves.push(m)
   if (crossed) {
@@ -179,25 +179,35 @@ function getPawnMoves(pos: { col: number; row: number }, side: string, pieces: C
   return moves
 }
 
-function getAdvisorMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[]): { col: number; row: number }[] {
+function getAdvisorMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[], restricted = false): { col: number; row: number }[] {
   const moves: { col: number; row: number }[] = []
   const dirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+  const [minR, maxR] = side === 'red' ? [0, 2] : [7, 9]
   for (const [dc, dr] of dirs) {
-    const m = canMoveTo(pos.col + dc, pos.row + dr, side, pieces)
+    const col = pos.col + dc, row = pos.row + dr
+    if (restricted) {
+      if (col < 3 || col > 5 || row < minR || row > maxR) continue
+    }
+    const m = canMoveTo(col, row, side, pieces)
     if (m) moves.push(m)
   }
   return moves
 }
 
-function getElephantMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[]): { col: number; row: number }[] {
+function getElephantMoves(pos: { col: number; row: number }, side: string, pieces: ChessPiece[], restricted = false): { col: number; row: number }[] {
   const moves: { col: number; row: number }[] = []
   const elephantMoves = [[-2, -2], [-2, 2], [2, -2], [2, 2]]
   const eyes = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+  const [minR, maxR] = side === 'red' ? [0, 4] : [5, 9]
   for (let i = 0; i < elephantMoves.length; i++) {
     const [dc, dr] = elephantMoves[i]
     const [ec, er] = eyes[i]
+    const col = pos.col + dc, row = pos.row + dr
+    if (restricted) {
+      if (row < minR || row > maxR) continue
+    }
     if (occupied({ col: pos.col + ec, row: pos.row + er }, pieces)) continue
-    const m = canMoveTo(pos.col + dc, pos.row + dr, side, pieces)
+    const m = canMoveTo(col, row, side, pieces)
     if (m) moves.push(m)
   }
   return moves

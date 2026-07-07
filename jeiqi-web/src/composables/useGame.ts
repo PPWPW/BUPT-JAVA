@@ -13,11 +13,8 @@ export function useGame() {
     ) || null
 
     if (board.selectedPiece.value) {
-      if (!board.selectedPiece.value.revealed &&
-          board.selectedPiece.value.position.col === col &&
+      if (board.selectedPiece.value.position.col === col &&
           board.selectedPiece.value.position.row === row) {
-        const from = board.posToAlgebraic(col, row)
-        ws.makeMove(from, from)
         board.clearSelection()
         return
       }

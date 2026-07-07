@@ -15,7 +15,7 @@ function formatTime(s: number): string {
 </script>
 
 <style scoped>
-.timer { font-size: 24px; font-weight: bold; color: #e0e0e0; }
+.timer { font-size: 24px; font-weight: bold; color: #e0e0e0; text-align: center; width: 100%; }
 .timer.danger { color: #e74c3c; animation: blink 0.5s infinite alternate; }
 @keyframes blink { to { opacity: 0.5; } }
 </style>

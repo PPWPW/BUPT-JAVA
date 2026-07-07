@@ -19,10 +19,18 @@ public class ElephantRule implements MoveRule {
         ChessPiece piece = board.getPieceAt(from);
         if (piece == null) return moves;
 
+        boolean isRestricted = !piece.isRevealed();
+        int minRow = (piece.getSide() == com.jeiqi.model.Side.RED) ? 0 : 5;
+        int maxRow = (piece.getSide() == com.jeiqi.model.Side.RED) ? 4 : 9;
+
         for (int i = 0; i < ELEPHANT_MOVES.length; i++) {
             int col = from.getCol() + ELEPHANT_MOVES[i][0];
             int row = from.getRow() + ELEPHANT_MOVES[i][1];
             if (col < 0 || col >= ChessBoard.COLS || row < 0 || row >= ChessBoard.ROWS) continue;
+
+            if (isRestricted) {
+                if (row < minRow || row > maxRow) continue;
+            }
 
             int eyeCol = from.getCol() + EYE_OFFSETS[i][0];
             int eyeRow = from.getRow() + EYE_OFFSETS[i][1];

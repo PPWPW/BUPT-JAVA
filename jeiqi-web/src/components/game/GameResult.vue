@@ -30,9 +30,15 @@ const title = computed(() => {
 
 const reasonText = computed(() => {
   const map: Record<string, string> = {
-    CHECKMATE: '将死', STALEMATE: '困毙', TIMEOUT: '超时',
-    RESIGN: '认输', KING_CAPTURED: '帅被吃', DRAW_AGREED: '双方同意和棋',
-    NO_CAPTURE_DRAW: '40回合无吃子和棋', PERPETUAL_CHECK: '长将判负',
+    checkmate: '将死',
+    stalemate: '困毙',
+    timeout: '超时',
+    resign: '认输',
+    king_captured: '帅被吃',
+    draw_agreed: '双方同意和棋',
+    draw_no_capture: '80单步无吃子和棋',
+    repetition_loss: '长将/长捉判负',
+    disconnect: '对方断线',
   }
   return map[props.reason || ''] || props.reason || ''
 })

@@ -14,6 +14,7 @@ export const useUserStore = defineStore('user', () => {
     username.value = data.username
     localStorage.setItem('userId', data.id)
     localStorage.setItem('username', data.username)
+    localStorage.setItem('userPassword', pass)
     return null
   }
 
@@ -24,6 +25,7 @@ export const useUserStore = defineStore('user', () => {
     username.value = data.username
     localStorage.setItem('userId', data.id)
     localStorage.setItem('username', data.username)
+    localStorage.setItem('userPassword', pass)
     return null
   }
 

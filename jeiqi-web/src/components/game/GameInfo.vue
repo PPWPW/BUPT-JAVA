@@ -1,11 +1,11 @@
 <template>
   <div class="game-info">
-    <div class="player" :class="{ active: currentTurn === 'RED' }">
+    <div class="player" :class="{ active: currentTurn === 'red' }">
       <span class="dot red"></span>
       {{ redPlayer || '红方' }}
     </div>
     <div class="vs">VS</div>
-    <div class="player" :class="{ active: currentTurn === 'BLACK' }">
+    <div class="player" :class="{ active: currentTurn === 'black' }">
       <span class="dot black"></span>
       {{ blackPlayer || '黑方' }}
     </div>

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./JAVA
+    ports:
+      - "8887:8887"
+      - "8888:8888"
+    restart: always
+
+  frontend:
+    build:
+      context: ./jeiqi-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always

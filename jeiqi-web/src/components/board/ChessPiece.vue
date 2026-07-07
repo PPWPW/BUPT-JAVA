@@ -2,7 +2,6 @@
   <div
     class="piece"
     :class="[piece.side.toLowerCase(), { hidden: !piece.revealed, selected: isSelected }]"
-    @click="$emit('click')"
   >
     {{ displayText }}
   </div>
@@ -14,17 +13,17 @@ import { PIECE_NAMES, PIECE_NAMES_BLACK } from '../../types/game'
 import type { ChessPiece as Piece } from '../../types/game'
 
 const props = defineProps<{ piece: Piece; isSelected: boolean }>()
-defineEmits<{ click: [] }>()
 
 const displayText = computed(() => {
   if (!props.piece.revealed) return '?'
-  if (props.piece.side === 'RED') return PIECE_NAMES[props.piece.type!] || '?'
+  if (props.piece.side === 'red') return PIECE_NAMES[props.piece.type!] || '?'
   return PIECE_NAMES_BLACK[props.piece.type!] || '?'
 })
 </script>
 
 <style scoped>
 .piece {
+  font-family: 'KaiTi', 'STKaiti', 'SimSun', 'NSimSun', serif;
   width: 56px; height: 56px; border-radius: 50%; display: flex;
   align-items: center; justify-content: center; font-size: 22px;
   font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.15s;

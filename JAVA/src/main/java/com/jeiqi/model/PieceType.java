@@ -1,13 +1,15 @@
 package com.jeiqi.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public enum PieceType {
-    KING(0, "将/帅"),
-    CHARIOT(1, "车"),
-    HORSE(2, "马"),
-    CANNON(3, "炮"),
-    PAWN(4, "兵/卒"),
-    ADVISOR(5, "士/仕"),
-    ELEPHANT(6, "象/相");
+    @JsonProperty("king") KING(0, "将/帅"),
+    @JsonProperty("rook") CHARIOT(1, "车"),
+    @JsonProperty("knight") HORSE(2, "马"),
+    @JsonProperty("cannon") CANNON(3, "炮"),
+    @JsonProperty("pawn") PAWN(4, "兵/卒"),
+    @JsonProperty("guard") ADVISOR(5, "士/仕"),
+    @JsonProperty("bishop") ELEPHANT(6, "象/相");
 
     private final int code;
     private final String displayName;

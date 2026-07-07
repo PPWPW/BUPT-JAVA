@@ -64,6 +64,20 @@ public class TcpGameServer implements DisposableBean {
         }
     }
 
+    @org.springframework.context.event.EventListener
+    public void handleGameTimeout(com.jeiqi.event.GameTimeoutEvent event) {
+        com.jeiqi.model.Game game = gameService.getGame(event.getGameId());
+        if (game != null) {
+            int winnerCode = event.getResult().getWinner() == com.jeiqi.model.Side.RED ? 0 : 1;
+            String payload = winnerCode + "|2|timeout";
+
+            TcpClientHandler red = TcpClientHandler.activeConnections.get(game.getRedPlayerId());
+            if (red != null) red.send(6, payload);
+            TcpClientHandler black = TcpClientHandler.activeConnections.get(game.getBlackPlayerId());
+            if (black != null) black.send(6, payload);
+        }
+    }
+
     @Override
     public void destroy() {
         running = false;

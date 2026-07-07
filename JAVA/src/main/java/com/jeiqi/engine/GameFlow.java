@@ -39,28 +39,47 @@ public class GameFlow {
         boolean captured = false;
         PieceType revealedType = null;
 
-        if (from.equals(to)) {
-            revealedType = pieceAssigner.assignType(piece.getSide());
-            board.revealPiece(from, revealedType);
+        ChessPiece target = board.getPieceAt(to);
+        if (target != null) {
+            captured = true;
+            if (!target.isRevealed()) {
+                target.setCapturedAsHidden(true);
+                PieceType capturedType = pieceAssigner.assignType(target.getSide());
+                target.reveal(capturedType);
+            }
+            game.resetMovesWithoutCapture();
         } else {
-            ChessPiece target = board.getPieceAt(to);
-            if (target != null) {
-                captured = true;
-                if (!target.isRevealed()) {
-                    PieceType capturedType = pieceAssigner.assignType(target.getSide());
-                    target.reveal(capturedType);
+            game.incrementMovesWithoutCapture();
+        }
+
+        board.movePiece(from, to);
+
+        if (!piece.isRevealed()) {
+            revealedType = pieceAssigner.assignType(piece.getSide());
+            board.revealPiece(to, revealedType);
+        }
+
+        // Determine if this move is a check or catch
+        Side movingSide = piece.getSide();
+        Side opponentSide = (movingSide == Side.RED) ? Side.BLACK : Side.RED;
+        boolean isCheck = ruleEngine.isInCheck(board, opponentSide);
+        boolean isCatch = false;
+        
+        if (!isCheck && piece.getType() != PieceType.PAWN) {
+            java.util.List<Position> attacks = ruleEngine.getMoveGenerator().getLegalMoves(board, from.equals(to) ? from : to);
+            for (Position attackPos : attacks) {
+                ChessPiece attackedPiece = board.getPieceAt(attackPos);
+                if (attackedPiece != null && attackedPiece.getSide() == opponentSide && attackedPiece.isAlive() && !attackedPiece.isKing()) {
+                    isCatch = true;
+                    break;
                 }
-                game.resetMovesWithoutCapture();
-            } else {
-                game.incrementMovesWithoutCapture();
             }
+        }
 
-            board.movePiece(from, to);
-
-            if (!piece.isRevealed()) {
-                revealedType = pieceAssigner.assignType(piece.getSide());
-                board.revealPiece(to, revealedType);
-            }
+        if (isCheck || isCatch) {
+            game.incrementRepeatedCheckCount(movingSide);
+        } else {
+            game.resetRepeatedCheckCount(movingSide);
         }
 
         move.setType(revealedType != null ? revealedType.getCode() : null);

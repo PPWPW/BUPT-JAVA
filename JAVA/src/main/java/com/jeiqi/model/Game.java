@@ -49,7 +49,13 @@ public class Game {
     private int movesWithoutCapture;
 
     @Transient
-    private int repeatedCheckCount;
+    private int repeatedCheckCountRed = 0;
+
+    @Transient
+    private int repeatedCheckCountBlack = 0;
+
+    @Transient
+    private String drawRequestedBy = null;
 
     private String redPlayerId;
     private String redPlayerName;
@@ -67,7 +73,9 @@ public class Game {
         this.status = GameStatus.WAITING;
         this.currentTurn = Side.RED;
         this.movesWithoutCapture = 0;
-        this.repeatedCheckCount = 0;
+        this.repeatedCheckCountRed = 0;
+        this.repeatedCheckCountBlack = 0;
+        this.drawRequestedBy = null;
     }
 
     public Game(String id) {
@@ -192,20 +200,24 @@ public class Game {
         this.movesWithoutCapture = 0;
     }
 
-    public int getRepeatedCheckCount() {
-        return repeatedCheckCount;
+    public int getRepeatedCheckCount(Side side) {
+        return side == Side.RED ? repeatedCheckCountRed : repeatedCheckCountBlack;
     }
 
-    public void setRepeatedCheckCount(int repeatedCheckCount) {
-        this.repeatedCheckCount = repeatedCheckCount;
+    public void incrementRepeatedCheckCount(Side side) {
+        if (side == Side.RED) {
+            repeatedCheckCountRed++;
+        } else {
+            repeatedCheckCountBlack++;
+        }
     }
 
-    public void incrementRepeatedCheckCount() {
-        this.repeatedCheckCount++;
-    }
-
-    public void resetRepeatedCheckCount() {
-        this.repeatedCheckCount = 0;
+    public void resetRepeatedCheckCount(Side side) {
+        if (side == Side.RED) {
+            repeatedCheckCountRed = 0;
+        } else {
+            repeatedCheckCountBlack = 0;
+        }
     }
 
     public String getRedPlayerId() { return redPlayerId; }
@@ -228,6 +240,9 @@ public class Game {
 
     public long getGameEndTime() { return gameEndTime; }
     public void setGameEndTime(long gameEndTime) { this.gameEndTime = gameEndTime; }
+
+    public String getDrawRequestedBy() { return drawRequestedBy; }
+    public void setDrawRequestedBy(String drawRequestedBy) { this.drawRequestedBy = drawRequestedBy; }
 
     @Override
     public String toString() {

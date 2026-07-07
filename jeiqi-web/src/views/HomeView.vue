@@ -45,26 +45,34 @@ async function submitAuth(mode: 'login' | 'register') {
     error.value = '请输入用户名和密码'
     return
   }
-  const err = mode === 'login'
-    ? await userStore.doLogin(username.value, password.value)
-    : await userStore.doRegister(username.value, password.value)
-  if (err) { error.value = err; return }
-  error.value = null
+  try {
+    const err = mode === 'login'
+      ? await userStore.doLogin(username.value, password.value)
+      : await userStore.doRegister(username.value, password.value)
+    if (err) { error.value = err; return }
+    error.value = null
+  } catch (e: any) {
+    error.value = '网络请求失败，请检查后端服务是否启动！'
+    console.error(e)
+  }
 }
 
 function onMatch() {
   if (!userStore.userId) return
-  ws.connect(userStore.userId!, () => {
+  ws.connect(userStore.username!, () => {
     ws.joinQueue()
   })
 }
 
-watch(() => gameStore.gameId, (newId) => {
-  if (newId && gameStore.status === 'PLAYING') {
-    ws.subscribeGame(newId)
-    router.push(`/game/${newId}`)
+watch(
+  [() => gameStore.gameId, () => gameStore.status],
+  ([newId, newStatus]) => {
+    if (newId && newStatus === 'PLAYING') {
+      ws.subscribeGame(newId)
+      router.push(`/game/${newId}`)
+    }
   }
-})
+)
 
 function onCancelMatch() {
   ws.leaveQueue()

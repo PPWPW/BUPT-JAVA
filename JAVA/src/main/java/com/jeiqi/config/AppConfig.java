@@ -24,9 +24,20 @@ public class AppConfig {
         return new ProtocolHandler(objectMapper);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${game.move-timeout-seconds:60}")
+    private int moveTimeoutSeconds;
+
+    @org.springframework.beans.factory.annotation.Value("${game.network-delay-tolerance-ms:5000}")
+    private int networkDelayToleranceMs;
+
     @Bean
-    public GameService gameService(GameRepository gameRepository) {
-        return new GameService(gameRepository);
+    public com.jeiqi.engine.TimerManager timerManager() {
+        return new com.jeiqi.engine.TimerManager(moveTimeoutSeconds * 1000L, networkDelayToleranceMs);
+    }
+
+    @Bean
+    public GameService gameService(GameRepository gameRepository, com.jeiqi.engine.TimerManager timerManager, org.springframework.context.ApplicationEventPublisher eventPublisher) {
+        return new GameService(gameRepository, timerManager, eventPublisher);
     }
 
     @Bean

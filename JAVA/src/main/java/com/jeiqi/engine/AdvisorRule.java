@@ -20,10 +20,19 @@ public class AdvisorRule implements MoveRule {
         ChessPiece piece = board.getPieceAt(from);
         if (piece == null) return moves;
 
+        boolean isRestricted = !piece.isRevealed();
+        int minRow = (piece.getSide() == com.jeiqi.model.Side.RED) ? 0 : 7;
+        int maxRow = (piece.getSide() == com.jeiqi.model.Side.RED) ? 2 : 9;
+
         for (int[] dir : DIAGONALS) {
             int col = from.getCol() + dir[0];
             int row = from.getRow() + dir[1];
             if (col < 0 || col >= ChessBoard.COLS || row < 0 || row >= ChessBoard.ROWS) continue;
+
+            if (isRestricted) {
+                if (col < 3 || col > 5 || row < minRow || row > maxRow) continue;
+            }
+
             Position to = new Position(col, row);
             ChessPiece target = board.getPieceAt(to);
             if (target == null || target.getSide() != piece.getSide()) {

@@ -108,8 +108,17 @@ class GameServiceTest {
         Player black = new Player("p2", "Bob");
         Game game = gameService.createGame(red, black);
 
-        GameResult result = gameService.handleDraw(game.getId(), "p1", true);
+        // First player requests
+        GameService.DrawResult reqResult = gameService.handleDraw(game.getId(), "p1", true);
+        assertNotNull(reqResult);
+        assertEquals(GameService.DrawResult.Status.REQUESTED, reqResult.getStatus());
 
+        // Opponent accepts
+        GameService.DrawResult acceptResult = gameService.handleDraw(game.getId(), "p2", true);
+        assertNotNull(acceptResult);
+        assertEquals(GameService.DrawResult.Status.ACCEPTED, acceptResult.getStatus());
+
+        GameResult result = acceptResult.getGameResult();
         assertNotNull(result);
         assertTrue(result.isDraw());
         assertEquals(GameStatus.FINISHED, game.getStatus());
@@ -122,9 +131,14 @@ class GameServiceTest {
         Player black = new Player("p2", "Bob");
         Game game = gameService.createGame(red, black);
 
-        GameResult result = gameService.handleDraw(game.getId(), "p1", false);
+        // First player requests
+        gameService.handleDraw(game.getId(), "p1", true);
 
-        assertNull(result);
+        // Opponent rejects
+        GameService.DrawResult result = gameService.handleDraw(game.getId(), "p2", false);
+
+        assertNotNull(result);
+        assertEquals(GameService.DrawResult.Status.REJECTED, result.getStatus());
         assertEquals(GameStatus.PLAYING, game.getStatus());
     }
 

@@ -1,11 +1,14 @@
 com\jeiqi\controller\GameController.class
 com\jeiqi\engine\MoveGenerator.class
 com\jeiqi\protocol\MessageType.class
+com\jeiqi\service\GameService$DrawResult.class
 com\jeiqi\service\NotationService.class
+com\jeiqi\event\GameTimeoutEvent.class
 com\jeiqi\engine\MoveGenerator$MoveCandidate.class
 com\jeiqi\network\TcpClientHandler.class
 com\jeiqi\model\ChessPiece.class
 com\jeiqi\controller\UserController.class
+com\jeiqi\service\GameService$DrawResult$Status.class
 com\jeiqi\engine\HorseRule.class
 com\jeiqi\model\ChessBoard.class
 com\jeiqi\controller\NotationController.class

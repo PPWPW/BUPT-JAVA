@@ -1,58 +1,82 @@
-import { Client, IFrame, IMessage } from '@stomp/stompjs'
-
 class SocketService {
-  private client: Client | null = null
+  private socket: WebSocket | null = null
   private onMessage: ((msg: any) => void) | null = null
+  private heartbeatInterval: any = null
 
   connect(userId: string, callback: () => void) {
-    const wsUrl = `ws://${window.location.hostname}:8080/ws`
-    this.client = new Client({
-      brokerURL: wsUrl,
-      connectHeaders: {
-        userId: userId,
-      },
-      reconnectDelay: 5000,
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
-    })
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const wsUrl = `${protocol}://${window.location.host}/ws`
+    this.socket = new WebSocket(wsUrl)
 
-    this.client.onConnect = () => {
-      this.client?.subscribe(`/user/queue/game`, (msg: IMessage) => {
-        if (this.onMessage) {
-          this.onMessage(JSON.parse(msg.body))
-        }
+    this.socket.onopen = () => {
+      console.log('Raw WebSocket connected')
+      // Login automatically upon connecting
+      const password = localStorage.getItem('userPassword') || '123456'
+      this.send({
+        messageType: 'Login',
+        userId: userId,
+        password: password
       })
+
+      this.heartbeatInterval = setInterval(() => {
+        this.send({
+          messageType: 'ping',
+          timestamp: Date.now()
+        })
+      }, 10000)
+
       callback()
     }
 
-    this.client.onStompError = (frame: IFrame) => {
-      console.error('STOMP error:', frame.headers['message'])
+    this.socket.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data)
+        if (msg.messageType === 'pong') {
+          return
+        }
+        if (this.onMessage) {
+          this.onMessage(msg)
+        }
+      } catch (e) {
+        console.error('Error parsing WS message:', e)
+      }
     }
 
-    this.client.activate()
+    this.socket.onclose = () => {
+      console.log('WebSocket closed')
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval)
+      }
+    }
+
+    this.socket.onerror = (err) => {
+      console.error('WebSocket error:', err)
+    }
   }
 
   subscribeToGame(gameId: string) {
-    this.client?.subscribe(`/topic/game/${gameId}`, (msg: IMessage) => {
-      if (this.onMessage) {
-        this.onMessage(JSON.parse(msg.body))
-      }
-    })
+    // Under raw WebSockets, the server manages session subscriptions automatically.
   }
 
   setMessageHandler(handler: (msg: any) => void) {
     this.onMessage = handler
   }
 
-  send(destination: string, body: Record<string, unknown>) {
-    this.client?.publish({
-      destination,
-      body: JSON.stringify(body),
-    })
+  send(body: Record<string, unknown>) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(body))
+    } else {
+      console.warn('Socket not open, message not sent:', body)
+    }
   }
 
   disconnect() {
-    this.client?.deactivate()
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval)
+    }
+    if (this.socket) {
+      this.socket.close()
+    }
   }
 }
 

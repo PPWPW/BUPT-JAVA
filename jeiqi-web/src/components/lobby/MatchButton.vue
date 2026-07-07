@@ -2,10 +2,9 @@
   <div class="match-area">
     <button
       class="btn-primary match-btn"
-      :disabled="matching"
       @click="toggleMatch"
     >
-      {{ matching ? '匹配中...' : '开始匹配' }}
+      {{ matching ? '匹配中(点击取消)' : '开始匹配' }}
     </button>
     <p v-if="matching" class="hint">正在寻找对手...</p>
   </div>

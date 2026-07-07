@@ -9,6 +9,7 @@ public class ChessPiece {
     private boolean revealed;
     private Position position;
     private boolean alive;
+    private boolean capturedAsHidden = false;
 
     public ChessPiece(PieceType type, Side side, Position position, boolean revealed) {
         this.type = type;
@@ -57,6 +58,14 @@ public class ChessPiece {
 
     public boolean isAlive() {
         return alive;
+    }
+
+    public boolean isCapturedAsHidden() {
+        return capturedAsHidden;
+    }
+
+    public void setCapturedAsHidden(boolean capturedAsHidden) {
+        this.capturedAsHidden = capturedAsHidden;
     }
 
     @Override

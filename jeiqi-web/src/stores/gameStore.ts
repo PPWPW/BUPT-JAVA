@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { ChessPiece, GameState, MoveRecord, Side } from '../types/game'
+import type { ChessPiece, GameState, MoveRecord, Side, PieceType } from '../types/game'
+import { useUserStore } from './userStore'
 
 export const useGameStore = defineStore('game', () => {
   const gameId = ref<string | null>(null)
   const status = ref<string>('WAITING')
   const redPlayer = ref('')
   const blackPlayer = ref('')
-  const currentTurn = ref<Side>('RED')
+  const currentTurn = ref<Side>('red')
   const mySide = ref<Side | null>(null)
   const pieces = ref<ChessPiece[]>([])
   const capturedPieces = ref<ChessPiece[]>([])
@@ -16,6 +17,8 @@ export const useGameStore = defineStore('game', () => {
   const reason = ref<string | null>(null)
   const selectedPos = ref<{ col: number; row: number } | null>(null)
   const legalMoves = ref<{ col: number; row: number }[]>([])
+  const drawRequestReceived = ref(false)
+  const drawRejected = ref(false)
 
   function setGame(data: GameState) {
     gameId.value = data.id
@@ -32,51 +35,128 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function updateFromServer(msg: any) {
-    const p = msg.payload
-    switch (msg.type) {
-      case 'MATCH_FOUND':
-        gameId.value = p.gameId
-        mySide.value = p.side as Side
+    const userStore = useUserStore()
+    switch (msg.messageType) {
+      case 'matchSuccess':
+        reset()
+        gameId.value = msg.roomId
+        status.value = 'MATCHED'
+        // Auto-send Ready when matching succeeds
+        import('../composables/useWebSocket').then(({ useWebSocket }) => {
+          const { sendReady } = useWebSocket()
+          sendReady()
+        })
+        break
+      case 'gameStart':
         status.value = 'PLAYING'
-        break
-      case 'GAME_START':
-        currentTurn.value = p.turn as Side
-        if (p.pieces) {
-          pieces.value = p.pieces
-        }
-        break
-      case 'MOVE_RESULT':
-        if (p.move) {
-          const moveStr = p.move as string
-          const src = moveStr.slice(0, 2)
-          const dst = moveStr.slice(2, 4)
-          moveHistory.value.push({
-            source: src,
-            destination: dst,
-            type: p.revealedType ? 1 : null,
-            moveNumber: moveHistory.value.length + 1,
-            side: currentTurn.value,
-            revealMove: src === dst,
-            notation: moveStr,
+        mySide.value = msg.yourColor as Side
+        currentTurn.value = 'red' // red always starts
+        if (msg.initialBoard) {
+          pieces.value = msg.initialBoard.map((cell: any) => {
+            const col = cell.x.charCodeAt(0) - 97
+            const row = cell.y
+            const side: Side = row < 5 ? 'red' : 'black'
+            return {
+              type: cell.piece as PieceType,
+              side: side,
+              revealed: cell.visible,
+              position: { col, row },
+              alive: true
+            }
           })
         }
-        if (p.pieces) {
-          pieces.value = p.pieces
-        }
-        if (p.capturedPieces) {
-          capturedPieces.value = p.capturedPieces
+        break
+      case 'moveResult':
+        if (msg.success && msg.valid) {
+          const m = msg.move
+          const fromCol = m.fromX.charCodeAt(0) - 97
+          const fromRow = m.fromY
+          const toCol = m.toX.charCodeAt(0) - 97
+          const toRow = m.toY
+
+          const movingPiece = pieces.value.find(p => p.alive && p.position.col === fromCol && p.position.row === fromRow)
+          if (movingPiece) {
+            const targetPiece = pieces.value.find(p => p.alive && p.position.col === toCol && p.position.row === toRow)
+            if (targetPiece) {
+              targetPiece.alive = false
+              let capType = targetPiece.type
+              let capRevealed = targetPiece.revealed
+
+              if (msg.capturedType) {
+                if (msg.capturedType === 'NULL') {
+                  capType = null
+                  capRevealed = false
+                } else {
+                  capType = msg.capturedType as PieceType
+                  capRevealed = true
+                }
+              } else if (msg.flipResult && movingPiece.revealed) {
+                if (msg.flipResult === 'NULL') {
+                  capType = null
+                  capRevealed = false
+                } else {
+                  capType = msg.flipResult as PieceType
+                  capRevealed = true
+                }
+              }
+
+              capturedPieces.value.push({
+                type: capType,
+                side: targetPiece.side,
+                revealed: capRevealed,
+                position: { col: toCol, row: toRow },
+                alive: false
+              })
+            }
+
+            movingPiece.position = { col: toCol, row: toRow }
+
+            if (msg.flipResult && !movingPiece.revealed) {
+              movingPiece.revealed = true
+              movingPiece.type = msg.flipResult as PieceType
+            }
+
+            moveHistory.value.push({
+              source: m.fromX + m.fromY,
+              destination: m.toX + m.toY,
+              type: movingPiece.revealed ? 1 : null,
+              moveNumber: moveHistory.value.length + 1,
+              side: movingPiece.side,
+              revealMove: fromCol === toCol && fromRow === toRow,
+              notation: m.fromX + m.fromY + m.toX + m.toY + (msg.flipResult ? ',' + msg.flipResult : '')
+            })
+
+            currentTurn.value = currentTurn.value === 'red' ? 'black' : 'red'
+          }
         }
         break
-      case 'TURN_NOTIFY':
-        currentTurn.value = p.turn as Side
+      case 'roomInfo':
         break
-      case 'GAME_OVER':
-        winner.value = p.winner as Side | null
-        reason.value = p.reason as string
+      case 'timeout':
+        status.value = 'FINISHED'
+        winner.value = msg.winnerId === userStore.username ? mySide.value : (mySide.value === 'red' ? 'black' : 'red')
+        reason.value = 'timeout'
+        break
+      case 'gameOver':
+        winner.value = msg.winner as Side | null
+        reason.value = msg.reason as string
         status.value = 'FINISHED'
         break
-      case 'ERROR':
-        console.error('Server error:', p.message)
+      case 'drawRequest':
+        drawRequestReceived.value = true
+        break
+      case 'drawRejected':
+        drawRejected.value = true
+        break
+      case 'loginResult':
+        if (!msg.success) {
+          alert('登录连接已失效（服务器已重启），请点击确定重新登录或注册！')
+          userStore.logout()
+          window.location.href = '/'
+        }
+        break
+      case 'error':
+        console.error('Server error:', msg.message)
         break
     }
   }
@@ -84,6 +164,8 @@ export const useGameStore = defineStore('game', () => {
   function reset() {
     gameId.value = null
     status.value = 'WAITING'
+    redPlayer.value = ''
+    blackPlayer.value = ''
     pieces.value = []
     capturedPieces.value = []
     moveHistory.value = []
@@ -91,12 +173,15 @@ export const useGameStore = defineStore('game', () => {
     reason.value = null
     selectedPos.value = null
     legalMoves.value = []
+    drawRequestReceived.value = false
+    drawRejected.value = false
   }
 
   return {
     gameId, status, redPlayer, blackPlayer, currentTurn, mySide,
     pieces, capturedPieces, moveHistory, winner, reason,
     selectedPos, legalMoves,
+    drawRequestReceived, drawRejected,
     setGame, updateFromServer, reset,
   }
 })

@@ -16,7 +16,11 @@ spring:
       enabled: true
       path: /h2-console
 
+server:
+  port: 8887
+
 game:
+  tcp-port: 8888
   move-timeout-seconds: 60
   network-delay-tolerance-ms: 5000
   no-capture-draw-rounds: 40
