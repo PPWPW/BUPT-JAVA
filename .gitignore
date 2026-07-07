@@ -1,0 +1,19 @@
+# Java backend ignores
+JAVA/target/
+JAVA/data/
+JAVA/*.log
+JAVA/.idea/
+JAVA/*.iml
+JAVA/.settings/
+JAVA/.classpath
+JAVA/.project
+
+# Frontend ignores
+jeiqi-web/node_modules/
+jeiqi-web/dist/
+jeiqi-web/.local
+jeiqi-web/.eslintcache
+
+# OS ignores
+.DS_Store
+Thumbs.db
