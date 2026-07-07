@@ -24,13 +24,21 @@ const displayText = computed(() => {
 <style scoped>
 .piece {
   font-family: 'KaiTi', 'STKaiti', 'SimSun', 'NSimSun', serif;
-  width: 56px; height: 56px; border-radius: 50%; display: flex;
-  align-items: center; justify-content: center; font-size: 22px;
-  font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.15s;
+  width: calc(var(--cell-size) * 0.88);
+  height: calc(var(--cell-size) * 0.88);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--cell-size) * 0.35);
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s;
 }
 .piece.red { background: #fff5e6; color: #c0392b; border: 2px solid #c0392b; }
 .piece.black { background: #fff5e6; color: #2c3e50; border: 2px solid #2c3e50; }
-.piece.hidden { background: #2c3e50; color: #95a5a6; border: 2px solid #555; font-size: 18px; }
+.piece.hidden { background: #2c3e50; color: #95a5a6; border: 2px solid #555; font-size: calc(var(--cell-size) * 0.28); }
 .piece:hover { transform: scale(1.1); }
 .piece.selected { border-color: #f1c40f; box-shadow: 0 0 12px #f1c40f; }
 </style>

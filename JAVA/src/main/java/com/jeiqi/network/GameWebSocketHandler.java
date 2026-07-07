@@ -22,6 +22,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private static final ConcurrentHashMap<String, WebSocketSession> activeSessions = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<WebSocketSession, String> sessionUserMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Boolean> playerReadyMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Set<WebSocketSession>> gameSpectators = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<WebSocketSession, String> sessionSpectatingMap = new ConcurrentHashMap<>();
 
     private final ObjectMapper objectMapper;
     private final MatchmakingService matchmakingService;
@@ -68,6 +70,16 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 }
             }
         }
+        String spectatingRoomId = sessionSpectatingMap.remove(session);
+        if (spectatingRoomId != null) {
+            Set<WebSocketSession> specs = gameSpectators.get(spectatingRoomId);
+            if (specs != null) {
+                specs.remove(session);
+                if (specs.isEmpty()) {
+                    gameSpectators.remove(spectatingRoomId);
+                }
+            }
+        }
         System.out.println("WebSocket connection closed: " + session.getId());
     }
 
@@ -98,6 +110,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case "ping" -> handlePing(session, msg);
             case "Resign" -> handleResign(session);
             case "draw" -> handleDraw(session, msg);
+            case "createRoom" -> handleCreateRoom(session, msg);
+            case "joinRoom" -> handleJoinRoom(session, msg);
+            case "spectateGame" -> handleSpectateGame(session, msg);
+            case "getBoardState" -> handleGetBoardState(session, msg);
             default -> sendError(session, 4001, "未知 messageType");
         }
     }
@@ -385,6 +401,28 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             sendJson(blackSession, res);
         }
 
+        Set<WebSocketSession> specs = gameSpectators.get(game.getId());
+        if (specs != null && !specs.isEmpty()) {
+            Map<String, Object> res = new HashMap<>(Map.of(
+                "messageType", "moveResult",
+                "success", true,
+                "valid", true,
+                "move", moveMap
+            ));
+            if (flipStr != null) res.put("flipResult", flipStr);
+            if (isCaptureOfHidden) {
+                res.put("capturedType", "NULL");
+                if (flipStr == null) {
+                    res.put("flipResult", "NULL");
+                }
+            }
+            for (WebSocketSession specSession : specs) {
+                if (specSession.isOpen()) {
+                    sendJson(specSession, res);
+                }
+            }
+        }
+
         if (result.isGameOver()) {
             GameResult gr = result.getGameResult();
             String reason = gr.getReason().name().toLowerCase();
@@ -405,6 +443,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
             if (redSession != null && redSession.isOpen()) sendJson(redSession, gameOverPayload);
             if (blackSession != null && blackSession.isOpen()) sendJson(blackSession, gameOverPayload);
+
+            if (specs != null && !specs.isEmpty()) {
+                for (WebSocketSession specSession : specs) {
+                    if (specSession.isOpen()) {
+                        sendJson(specSession, gameOverPayload);
+                    }
+                }
+            }
         }
     }
 
@@ -430,6 +476,15 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
             if (redSession != null && redSession.isOpen()) sendJson(redSession, gameOverMsg);
             if (blackSession != null && blackSession.isOpen()) sendJson(blackSession, gameOverMsg);
+
+            Set<WebSocketSession> specs = gameSpectators.get(game.getId());
+            if (specs != null && !specs.isEmpty()) {
+                for (WebSocketSession specSession : specs) {
+                    if (specSession.isOpen()) {
+                        sendJson(specSession, gameOverMsg);
+                    }
+                }
+            }
         }
     }
 
@@ -465,6 +520,15 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 WebSocketSession blackSession = activeSessions.get(game.getBlackPlayerId());
                 if (redSession != null && redSession.isOpen()) sendJson(redSession, gameOverPayload);
                 if (blackSession != null && blackSession.isOpen()) sendJson(blackSession, gameOverPayload);
+
+                Set<WebSocketSession> specs = gameSpectators.get(game.getId());
+                if (specs != null && !specs.isEmpty()) {
+                    for (WebSocketSession specSession : specs) {
+                        if (specSession.isOpen()) {
+                            sendJson(specSession, gameOverPayload);
+                        }
+                    }
+                }
             } else if (drawResult.getStatus() == com.jeiqi.service.GameService.DrawResult.Status.REJECTED) {
                 if (reqSession != null && reqSession.isOpen()) {
                     sendJson(reqSession, Map.of(
@@ -541,5 +605,214 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     private String hashPassword(String password) {
         return Integer.toHexString(password.hashCode());
+    }
+
+    private void handleCreateRoom(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String userId = sessionUserMap.get(session);
+        if (userId == null) {
+            sendError(session, 1001, "请先登录");
+            return;
+        }
+
+        String roomId = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
+        while (gameService.getGame(roomId) != null) {
+            roomId = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
+        }
+
+        Player player = new Player(userId, userId);
+        player.setConnection("WS");
+
+        String sidePref = (String) msg.get("side");
+        gameService.createRoom(roomId, player, sidePref);
+
+        sendJson(session, Map.of(
+            "messageType", "roomCreated",
+            "roomId", roomId
+        ));
+    }
+
+    private void handleJoinRoom(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String userId = sessionUserMap.get(session);
+        if (userId == null) {
+            sendError(session, 1001, "请先登录");
+            return;
+        }
+
+        String roomId = (String) msg.get("roomId");
+        if (roomId == null || roomId.isBlank()) {
+            sendError(session, 2001, "请输入房间号");
+            return;
+        }
+
+        Game game = gameService.getGame(roomId);
+        if (game == null) {
+            sendError(session, 2001, "房间不存在");
+            return;
+        }
+        if (game.getStatus() != GameStatus.WAITING) {
+            sendError(session, 2001, "房间已满或对局已开始");
+            return;
+        }
+
+        Player player = new Player(userId, userId);
+        player.setConnection("WS");
+
+        Game joinedGame = gameService.joinRoom(roomId, player);
+        if (joinedGame != null) {
+            WebSocketSession redSession = activeSessions.get(joinedGame.getRedPlayerId());
+            WebSocketSession blackSession = activeSessions.get(joinedGame.getBlackPlayerId());
+
+            if (redSession != null && redSession.isOpen()) {
+                sendJson(redSession, Map.of(
+                    "messageType", "matchSuccess",
+                    "roomId", joinedGame.getId(),
+                    "opponentId", joinedGame.getBlackPlayerId(),
+                    "opponentNickname", joinedGame.getBlackPlayerName()
+                ));
+            }
+            if (blackSession != null && blackSession.isOpen()) {
+                sendJson(blackSession, Map.of(
+                    "messageType", "matchSuccess",
+                    "roomId", joinedGame.getId(),
+                    "opponentId", joinedGame.getRedPlayerId(),
+                    "opponentNickname", joinedGame.getRedPlayerName()
+                ));
+            }
+        } else {
+            sendError(session, 2001, "加入房间失败");
+        }
+    }
+
+    private void handleSpectateGame(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String roomId = (String) msg.get("roomId");
+        if (roomId == null || roomId.isBlank()) {
+            sendError(session, 2002, "请输入房间号");
+            return;
+        }
+
+        Game game = gameService.getGame(roomId);
+        if (game == null) {
+            sendError(session, 2002, "房间不存在");
+            return;
+        }
+
+        gameSpectators.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(session);
+        sessionSpectatingMap.put(session, roomId);
+
+        sendBoardState(session, game);
+    }
+
+    private void handleGetBoardState(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String roomId = (String) msg.get("roomId");
+        if (roomId == null || roomId.isBlank()) {
+            sendError(session, 2002, "请输入房间号");
+            return;
+        }
+
+        Game game = gameService.getGame(roomId);
+        if (game == null) {
+            sendError(session, 2002, "房间不存在");
+            return;
+        }
+
+        sendBoardState(session, game);
+    }
+
+    private void sendBoardState(WebSocketSession session, Game game) throws IOException {
+        String userId = sessionUserMap.get(session);
+        String mySide = null;
+        if (userId != null) {
+            if (userId.equals(game.getRedPlayerId())) {
+                mySide = "red";
+            } else if (userId.equals(game.getBlackPlayerId())) {
+                mySide = "black";
+            }
+        }
+
+        List<Map<String, Object>> piecesList = new ArrayList<>();
+        ChessBoard board = game.getBoard();
+        for (int r = 0; r < ChessBoard.ROWS; r++) {
+            for (int c = 0; c < ChessBoard.COLS; c++) {
+                ChessPiece piece = board.getPieceAt(c, r);
+                if (piece != null) {
+                    Map<String, Object> pMap = new HashMap<>();
+                    Position pos = piece.getPosition();
+                    pMap.put("position", Map.of("col", pos.getCol(), "row", pos.getRow()));
+                    pMap.put("side", piece.getSide().name().toLowerCase());
+                    pMap.put("revealed", piece.isRevealed());
+                    pMap.put("alive", piece.isAlive());
+
+                    if (piece.isRevealed()) {
+                        String typeName = piece.getType().name().toLowerCase();
+                        if (typeName.equals("chariot")) typeName = "rook";
+                        if (typeName.equals("horse")) typeName = "knight";
+                        if (typeName.equals("advisor")) typeName = "guard";
+                        if (typeName.equals("elephant")) typeName = "bishop";
+                        pMap.put("type", typeName);
+                    } else {
+                        pMap.put("type", null);
+                    }
+                    piecesList.add(pMap);
+                }
+            }
+        }
+
+        List<Map<String, Object>> capturedList = new ArrayList<>();
+        for (ChessPiece piece : board.getCapturedPieces()) {
+            Map<String, Object> pMap = new HashMap<>();
+            pMap.put("side", piece.getSide().name().toLowerCase());
+            pMap.put("position", Map.of("col", piece.getPosition().getCol(), "row", piece.getPosition().getRow()));
+
+            boolean revealedToMe = false;
+            if (!piece.isCapturedAsHidden()) {
+                revealedToMe = true;
+            } else if (mySide != null) {
+                if (piece.getSide() == Side.BLACK && mySide.equals("red")) {
+                    revealedToMe = true;
+                } else if (piece.getSide() == Side.RED && mySide.equals("black")) {
+                    revealedToMe = true;
+                }
+            }
+
+            if (revealedToMe) {
+                pMap.put("revealed", true);
+                String typeName = piece.getType().name().toLowerCase();
+                if (typeName.equals("chariot")) typeName = "rook";
+                if (typeName.equals("horse")) typeName = "knight";
+                if (typeName.equals("advisor")) typeName = "guard";
+                if (typeName.equals("elephant")) typeName = "bishop";
+                pMap.put("type", typeName);
+            } else {
+                pMap.put("revealed", false);
+                pMap.put("type", null);
+            }
+            capturedList.add(pMap);
+        }
+
+        List<Map<String, Object>> moveHistoryList = new ArrayList<>();
+        int moveNum = 1;
+        for (Move move : game.getMoveHistory()) {
+            Map<String, Object> mMap = new HashMap<>();
+            mMap.put("source", move.getSource());
+            mMap.put("destination", move.getDestination());
+            mMap.put("type", move.getType());
+            mMap.put("moveNumber", moveNum++);
+            mMap.put("side", move.getSide().name().toLowerCase());
+            mMap.put("revealMove", move.getSource().equals(move.getDestination()));
+            moveHistoryList.add(mMap);
+        }
+
+        sendJson(session, Map.of(
+            "messageType", "boardState",
+            "roomId", game.getId(),
+            "status", game.getStatus().name(),
+            "redPlayerName", game.getRedPlayerName() != null ? game.getRedPlayerName() : "",
+            "blackPlayerName", game.getBlackPlayerName() != null ? game.getBlackPlayerName() : "",
+            "currentTurn", game.getCurrentTurn() != null ? game.getCurrentTurn().name().toLowerCase() : "red",
+            "mySide", mySide != null ? mySide : "spectator",
+            "pieces", piecesList,
+            "capturedPieces", capturedList,
+            "moveHistory", moveHistoryList
+        ));
     }
 }

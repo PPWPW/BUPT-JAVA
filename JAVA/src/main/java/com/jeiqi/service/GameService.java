@@ -215,6 +215,48 @@ public class GameService {
         return result;
     }
 
+    public Game createRoom(String roomId, Player creator, String sidePreference) {
+        Game game = new Game(roomId);
+        game.setStatus(GameStatus.WAITING);
+        if ("black".equalsIgnoreCase(sidePreference)) {
+            creator.setSide(Side.BLACK);
+            game.setBlackPlayer(creator);
+            game.setBlackPlayerId(creator.getId());
+            game.setBlackPlayerName(creator.getName());
+        } else {
+            creator.setSide(Side.RED);
+            game.setRedPlayer(creator);
+            game.setRedPlayerId(creator.getId());
+            game.setRedPlayerName(creator.getName());
+        }
+        activeGames.put(roomId, game);
+        return game;
+    }
+
+    public Game joinRoom(String roomId, Player joiner) {
+        Game game = activeGames.get(roomId);
+        if (game == null) {
+            return null;
+        }
+        if (game.getStatus() != GameStatus.WAITING) {
+            return null;
+        }
+        if (game.getRedPlayer() == null) {
+            joiner.setSide(Side.RED);
+            game.setRedPlayer(joiner);
+            game.setRedPlayerId(joiner.getId());
+            game.setRedPlayerName(joiner.getName());
+        } else {
+            joiner.setSide(Side.BLACK);
+            game.setBlackPlayer(joiner);
+            game.setBlackPlayerId(joiner.getId());
+            game.setBlackPlayerName(joiner.getName());
+        }
+        game.start();
+        timerManager.startTimer(roomId, () -> triggerTimeout(roomId));
+        return game;
+    }
+
     public Game getGame(String gameId) {
         return activeGames.get(gameId);
     }

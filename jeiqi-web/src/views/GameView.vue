@@ -1,45 +1,113 @@
 <template>
   <div class="game-view">
-    <div class="game-main">
-      <div class="left-panel">
-        <GameInfo
-          :redPlayer="gameStore.redPlayer"
-          :blackPlayer="gameStore.blackPlayer"
-          :currentTurn="gameStore.currentTurn"
-        />
-        <Timer :remaining="timer.remaining.value" />
+    <!-- Waiting Room Screen -->
+    <div v-if="gameStore.status === 'WAITING'" class="waiting-screen">
+      <div class="waiting-card animate-fade-in">
+        <h2>等待对手加入...</h2>
+        <div class="pulse-ring"></div>
+        <p class="subtitle">分享房间号给好友即可开始对局</p>
         
-        <div class="turn-banner" :class="{ 'my-turn': isMyTurn }">
-          <span class="pulse-dot"></span>
-          {{ turnMessage }}
+        <div class="room-id-box">
+          <span class="room-label">房间号</span>
+          <span class="room-value">{{ gameStore.gameId }}</span>
+          <button class="btn-primary copy-btn" @click="onCopyRoomId">
+            {{ copied ? '已复制' : '复制' }}
+          </button>
         </div>
-
-        <CapturedPiecesArea
-          :capturedPieces="gameStore.capturedPieces"
-          :mySide="gameStore.mySide"
-        />
+        
+        <button class="btn-secondary cancel-waiting-btn" @click="onExitToLobby">取消创建</button>
       </div>
-
-      <div class="board-area">
-        <ChessBoard
-          :pieces="gameStore.pieces"
-          :selectedPos="gameStore.selectedPos"
-          :legalMoves="gameStore.legalMoves"
-          :mySide="gameStore.mySide"
-          :myTurn="isMyTurn"
-          :lastMove="lastMove"
-          @cellClick="onCellClick"
-        />
-
-        <div class="actions">
-          <button class="btn-secondary" @click="onResign">认输</button>
-          <button class="btn-secondary" @click="onDraw">求和</button>
-        </div>
-      </div>
-
-      <MoveHistory :moves="gameStore.moveHistory" />
     </div>
 
+    <!-- Active Game Screen -->
+    <div v-else class="game-main animate-fade-in">
+      <div class="game-board-area">
+        <!-- Top Player Row (Opponent) -->
+        <div class="player-row top" :class="{ active: isTopActive }">
+          <div class="player-info">
+            <span class="avatar-dot" :class="topPlayerSide"></span>
+            <span class="username">{{ topPlayerName }}</span>
+            <div class="captured-mini-list">
+              <div 
+                v-for="(p, index) in topCaptures" 
+                :key="index" 
+                class="mini-piece" 
+                :class="[p.side.toLowerCase(), { hidden: !p.revealed }]"
+              >
+                {{ getPieceText(p) }}
+              </div>
+            </div>
+          </div>
+          <div class="player-timer" :class="{ active: isTopActive, black: topPlayerSide === 'black', low: isTopActive && topTime <= 10 }">
+            {{ topTime }}s
+          </div>
+        </div>
+
+        <!-- Chessboard Grid -->
+        <div class="board-container-wrapper">
+          <ChessBoard
+            :pieces="gameStore.pieces"
+            :selectedPos="gameStore.selectedPos"
+            :legalMoves="gameStore.legalMoves"
+            :mySide="gameStore.mySide"
+            :myTurn="isMyTurn"
+            :lastMove="lastMove"
+            @cellClick="onCellClick"
+          />
+        </div>
+
+        <!-- Bottom Player Row (User) -->
+        <div class="player-row bottom" :class="{ active: isBottomActive }">
+          <div class="player-info">
+            <span class="avatar-dot" :class="bottomPlayerSide"></span>
+            <span class="username">{{ bottomPlayerName }}</span>
+            <div class="captured-mini-list">
+              <div 
+                v-for="(p, index) in bottomCaptures" 
+                :key="index" 
+                class="mini-piece" 
+                :class="[p.side.toLowerCase(), { hidden: !p.revealed }]"
+              >
+                {{ getPieceText(p) }}
+              </div>
+            </div>
+          </div>
+          <div class="player-timer" :class="{ active: isBottomActive, black: bottomPlayerSide === 'black', low: isBottomActive && bottomTime <= 10 }">
+            {{ bottomTime }}s
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel Sidebar -->
+      <div class="sidebar">
+        <div class="room-details-card">
+          <div class="room-title">房间详情</div>
+          <div class="room-info-row">
+            <span class="label">房间号:</span>
+            <span class="value">{{ gameStore.gameId }}</span>
+          </div>
+          <div class="room-info-row" v-if="gameStore.mySide === null">
+            <span class="value spec-badge">正在观战中</span>
+          </div>
+          <div class="turn-status-banner" :class="{ 'my-turn': isMyTurn && gameStore.mySide }">
+            <span class="pulse-dot"></span>
+            {{ turnMessage }}
+          </div>
+        </div>
+
+        <MoveHistory :moves="gameStore.moveHistory" />
+
+        <div class="sidebar-actions">
+          <template v-if="gameStore.mySide && gameStore.status === 'PLAYING'">
+            <button class="btn-primary resign-btn" @click="onResign">认输</button>
+            <button class="btn-secondary draw-btn" @click="onDraw">求和</button>
+          </template>
+          <button class="btn-secondary lobby-btn" @click="onExitToLobby">返回大厅</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Results Overlay Modal -->
     <GameResult
       :visible="showResult"
       :winner="gameStore.winner"
@@ -65,24 +133,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
+import { useUserStore } from '../stores/userStore'
 import { useGame } from '../composables/useGame'
 import { useTimer } from '../composables/useTimer'
-import GameInfo from '../components/game/GameInfo.vue'
-import Timer from '../components/game/Timer.vue'
 import ChessBoard from '../components/board/ChessBoard.vue'
 import MoveHistory from '../components/game/MoveHistory.vue'
 import GameResult from '../components/game/GameResult.vue'
-import CapturedPiecesArea from '../components/game/CapturedPiecesArea.vue'
 
 const router = useRouter()
+const route = useRoute()
 const gameStore = useGameStore()
+const userStore = useUserStore()
 const { handleCellClick, board, ws } = useGame()
 const timer = useTimer(60)
 const showResult = ref(false)
 const showDrawRequestModal = ref(false)
+const copied = ref(false)
 
 const isMyTurn = computed(() => gameStore.currentTurn === gameStore.mySide)
 
@@ -93,10 +162,74 @@ const lastMove = computed(() => {
 
 const turnMessage = computed(() => {
   if (gameStore.status === 'FINISHED') return '对局已结束'
-  return isMyTurn.value ? '您的回合，请选择棋子移动' : '对方正在思考中...'
+  if (!gameStore.mySide) {
+    return gameStore.currentTurn === 'red' ? '红方思考中...' : '黑方思考中...'
+  }
+  return isMyTurn.value ? '您的回合，请走子' : '对方正在思考中...'
 })
 
+// Player profile computed properties
+const bottomPlayerSide = computed(() => {
+  return gameStore.mySide === 'black' ? 'black' : 'red'
+})
+
+const topPlayerSide = computed(() => {
+  return gameStore.mySide === 'black' ? 'red' : 'black'
+})
+
+const bottomPlayerName = computed(() => {
+  if (gameStore.mySide === 'black') return gameStore.blackPlayer || '黑方玩家'
+  return gameStore.redPlayer || '红方玩家'
+})
+
+const topPlayerName = computed(() => {
+  if (gameStore.mySide === 'black') return gameStore.redPlayer || '红方玩家'
+  return gameStore.blackPlayer || '黑方玩家'
+})
+
+const isBottomActive = computed(() => {
+  if (gameStore.status !== 'PLAYING') return false
+  return gameStore.currentTurn === bottomPlayerSide.value
+})
+
+const isTopActive = computed(() => {
+  if (gameStore.status !== 'PLAYING') return false
+  return gameStore.currentTurn === topPlayerSide.value
+})
+
+const bottomTime = computed(() => {
+  return isBottomActive.value ? timer.remaining.value : 60
+})
+
+const topTime = computed(() => {
+  return isTopActive.value ? timer.remaining.value : 60
+})
+
+const bottomCaptures = computed(() => {
+  const side = bottomPlayerSide.value
+  return gameStore.capturedPieces.filter(p => p.side !== side)
+})
+
+const topCaptures = computed(() => {
+  const side = topPlayerSide.value
+  return gameStore.capturedPieces.filter(p => p.side !== side)
+})
+
+const PIECE_NAMES: Record<string, string> = {
+  king: '帅', rook: '车', knight: '马', cannon: '炮', pawn: '兵', guard: '仕', bishop: '相'
+}
+
+const PIECE_NAMES_BLACK: Record<string, string> = {
+  king: '将', rook: '车', knight: '马', cannon: '炮', pawn: '卒', guard: '士', bishop: '象'
+}
+
+function getPieceText(p: any): string {
+  if (!p.revealed || !p.type) return '?'
+  return p.side === 'red' ? PIECE_NAMES[p.type] || '?' : PIECE_NAMES_BLACK[p.type] || '?'
+}
+
 function onCellClick(col: number, row: number) {
+  if (!gameStore.mySide) return // Spectators cannot play moves
   handleCellClick(col, row)
 }
 
@@ -119,6 +252,47 @@ function onRejectDraw() {
   showDrawRequestModal.value = false
   gameStore.drawRequestReceived = false
 }
+
+function onCopyRoomId() {
+  if (gameStore.gameId) {
+    navigator.clipboard.writeText(gameStore.gameId)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  }
+}
+
+function onExitToLobby() {
+  if (gameStore.mySide && gameStore.status === 'PLAYING') {
+    if (confirm('对局正在进行中，直接返回大厅将视作认输，是否确定？')) {
+      ws.resign()
+      setTimeout(() => {
+        router.push('/')
+      }, 300)
+    }
+  } else {
+    router.push('/')
+  }
+}
+
+onMounted(() => {
+  const roomId = route.params.id as string
+  const isSpectator = route.query.spectate === 'true'
+
+  if (!userStore.userId) {
+    router.push('/')
+    return
+  }
+
+  ws.connect(userStore.username!, () => {
+    if (isSpectator) {
+      ws.spectateGame(roomId)
+    } else {
+      ws.getBoardState(roomId)
+    }
+  })
+})
 
 watch(() => gameStore.status, (s) => {
   if (s === 'PLAYING') {
@@ -161,54 +335,373 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   padding: 10px;
   background: #1a1a2e;
+  box-sizing: border-box;
+  --cell-size: min(64px, 6.8vh);
 }
-.game-main { display: flex; gap: 20px; align-items: flex-start; }
-.left-panel { display: flex; flex-direction: column; gap: 12px; width: 220px; }
-.board-area { display: flex; flex-direction: column; gap: 10px; align-items: center; }
-.turn-banner {
+
+.game-main {
+  display: flex;
+  gap: 30px;
+  align-items: stretch;
+}
+
+/* Board Area & Player Rows */
+.game-board-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.player-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: calc(var(--cell-size) * 9);
+  margin-left: calc(var(--cell-size) * 0.5);
+  padding: 4px 8px;
+  box-sizing: border-box;
+  background: transparent;
+  transition: all 0.3s;
+}
+
+.player-info {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: #1f2937;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #9ca3af;
-  border: 1px solid #374151;
-  transition: all 0.3s;
-  width: 100%;
-  box-sizing: border-box;
 }
-.turn-banner.my-turn {
-  color: #2ecc71;
-  border-color: #2ecc71;
-  background: rgba(46, 204, 113, 0.1);
-  box-shadow: 0 0 10px rgba(46, 204, 113, 0.2);
-}
-.pulse-dot {
+
+.avatar-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+.avatar-dot.red {
+  background: #e94560;
+  box-shadow: 0 0 6px #e94560;
+}
+
+.avatar-dot.black {
+  background: #3498db;
+  box-shadow: 0 0 6px #3498db;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #a0aec0;
+}
+
+.player-row.active .username {
+  color: #fff;
+  font-weight: bold;
+}
+
+.captured-mini-list {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.mini-piece {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.mini-piece.red {
+  background: #fff5e6;
+  color: #c0392b;
+  border: 1px solid #c0392b;
+}
+
+.mini-piece.black {
+  background: #fff5e6;
+  color: #2c3e50;
+  border: 1px solid #2c3e50;
+}
+
+.mini-piece.hidden {
+  background: #1e293b;
+  color: #64748b;
+  border: 1px solid #475569;
+}
+
+.player-timer {
+  background: #16213e;
+  color: #4b5563;
+  border: 1px solid #1f2937;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.player-timer.active {
+  background: #e94560;
+  color: #fff;
+  border-color: #e94560;
+}
+
+.player-timer.active.black {
+  background: #3498db;
+  border-color: #3498db;
+}
+
+.player-timer.active.low {
+  animation: timer-pulse 1s infinite alternate;
+}
+
+.board-container-wrapper {
+  border: 2px solid #2d3748;
+  border-radius: 8px;
+  padding: 4px;
+  background: #2d3748;
+}
+
+/* Sidebar styling */
+.sidebar {
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.room-details-card {
+  background: #16213e;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.room-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #e94560;
+  border-bottom: 1px solid #1f2937;
+  padding-bottom: 6px;
+}
+
+.room-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.room-info-row .label {
+  color: #8892b0;
+}
+
+.room-info-row .value {
+  font-weight: bold;
+  color: #fff;
+}
+
+.spec-badge {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+  border: 1px solid #f39c12;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  display: inline-block;
+}
+
+.turn-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #0f172a;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+.turn-status-banner.my-turn {
+  color: #2ecc71;
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: #9ca3af;
 }
-.my-turn .pulse-dot {
+
+.turn-status-banner.my-turn .pulse-dot {
   background: #2ecc71;
   animation: pulse 1.5s infinite;
 }
+
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resign-btn {
+  background: #c0392b !important;
+}
+
+.resign-btn:hover {
+  background: #e74c3c !important;
+}
+
+/* Waiting Room styling */
+.waiting-screen {
+  position: fixed;
+  inset: 0;
+  background: #1a1a2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.waiting-card {
+  background: #16213e;
+  padding: 40px;
+  border-radius: 12px;
+  border: 1px solid #1f2937;
+  text-align: center;
+  max-width: 400px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.waiting-card h2 {
+  color: #fff;
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+
+.pulse-ring {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 4px solid #e94560;
+  margin: 0 auto 24px auto;
+  animation: pulse-ring-animation 1.5s infinite ease-in-out;
+}
+
+.subtitle {
+  color: #8892b0;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.room-id-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f172a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  margin-bottom: 30px;
+}
+
+.room-label {
+  color: #8892b0;
+  font-size: 13px;
+}
+
+.room-value {
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.copy-btn {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+}
+
+.cancel-waiting-btn {
+  width: 100%;
+  padding: 10px !important;
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-ring-animation {
+  0% { transform: scale(0.85); opacity: 0.5; box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4); }
+  50% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 10px rgba(233, 69, 96, 0); }
+  100% { transform: scale(0.85); opacity: 0.5; box-shadow: 0 0 0 0 rgba(233, 69, 96, 0); }
+}
+
 @keyframes pulse {
   0% { transform: scale(0.9); opacity: 1; }
   50% { transform: scale(1.2); opacity: 0.5; }
   100% { transform: scale(0.9); opacity: 1; }
 }
-.actions { display: flex; gap: 12px; margin-top: 4px; }
 
-.overlay-draw { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 1001; }
-.draw-dialog { background: #16213e; padding: 24px 36px; border-radius: 12px; text-align: center; border: 1px solid #e94560; max-width: 320px; }
-.draw-dialog h3 { color: #e94560; margin-bottom: 12px; font-size: 20px; }
-.draw-dialog p { color: #ccc; margin-bottom: 20px; font-size: 14px; }
-.draw-btns { display: flex; gap: 16px; justify-content: center; }
+@keyframes timer-pulse {
+  0% { transform: scale(1); background: #e94560; }
+  100% { transform: scale(1.05); background: #ff0000; box-shadow: 0 0 10px rgba(255,0,0,0.65); }
+}
+
+/* Draw dialog overlay */
+.overlay-draw {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+}
+
+.draw-dialog {
+  background: #16213e;
+  padding: 24px 36px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #e94560;
+  max-width: 320px;
+}
+
+.draw-dialog h3 {
+  color: #e94560;
+  margin-bottom: 12px;
+}
+
+.draw-dialog p {
+  color: #ccc;
+  margin-bottom: 20px;
+}
+
+.draw-btns {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
 </style>

@@ -3,32 +3,32 @@
     <h3>吃子记录</h3>
     
     <div class="section my-captures">
-      <div class="section-title">我方吃掉的棋子 ({{ myCaptures.length }})</div>
+      <div class="section-title">{{ section1Title }} ({{ section1Pieces.length }})</div>
       <div class="pieces-grid">
         <div 
-          v-for="(p, index) in myCaptures" 
+          v-for="(p, index) in section1Pieces" 
           :key="index" 
           class="mini-piece" 
           :class="[p.side.toLowerCase(), { hidden: !p.revealed }]"
         >
           {{ getPieceText(p) }}
         </div>
-        <div v-if="myCaptures.length === 0" class="empty-text">尚无吃子</div>
+        <div v-if="section1Pieces.length === 0" class="empty-text">尚无吃子</div>
       </div>
     </div>
     
     <div class="section opponent-captures">
-      <div class="section-title">对方吃掉的棋子 ({{ opponentCaptures.length }})</div>
+      <div class="section-title">{{ section2Title }} ({{ section2Pieces.length }})</div>
       <div class="pieces-grid">
         <div 
-          v-for="(p, index) in opponentCaptures" 
+          v-for="(p, index) in section2Pieces" 
           :key="index" 
           class="mini-piece" 
           :class="[p.side.toLowerCase(), { hidden: !p.revealed }]"
         >
           {{ getPieceText(p) }}
         </div>
-        <div v-if="opponentCaptures.length === 0" class="empty-text">尚无失子</div>
+        <div v-if="section2Pieces.length === 0" class="empty-text">尚无失子</div>
       </div>
     </div>
   </div>
@@ -69,16 +69,34 @@ const PIECE_NAMES_BLACK: Record<string, string> = {
   bishop: '象'
 }
 
-// Pieces captured by me (their side is opposite to mySide)
-const myCaptures = computed(() => {
-  if (!props.mySide) return []
-  return props.capturedPieces.filter(p => p.side !== props.mySide)
+const section1Title = computed(() => {
+  if (props.mySide) {
+    return '我方吃掉的棋子'
+  }
+  return '红方吃掉的棋子'
 })
 
-// Pieces captured by opponent (their side matches mySide)
-const opponentCaptures = computed(() => {
-  if (!props.mySide) return []
-  return props.capturedPieces.filter(p => p.side === props.mySide)
+const section2Title = computed(() => {
+  if (props.mySide) {
+    return '对方吃掉的棋子'
+  }
+  return '黑方吃掉的棋子'
+})
+
+const section1Pieces = computed(() => {
+  if (props.mySide) {
+    return props.capturedPieces.filter(p => p.side !== props.mySide)
+  }
+  // For spectator, show black pieces captured by Red
+  return props.capturedPieces.filter(p => p.side === 'black')
+})
+
+const section2Pieces = computed(() => {
+  if (props.mySide) {
+    return props.capturedPieces.filter(p => p.side === props.mySide)
+  }
+  // For spectator, show red pieces captured by Black
+  return props.capturedPieces.filter(p => p.side === 'red')
 })
 
 function getPieceText(p: CapturedPiece): string {

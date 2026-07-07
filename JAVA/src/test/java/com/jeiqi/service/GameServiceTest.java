@@ -156,4 +156,41 @@ class GameServiceTest {
 
         assertFalse(result.isValid());
     }
+
+    @Test
+    void shouldCreateAndJoinRoomSuccessfully() {
+        Player creator = new Player("p1", "Alice");
+        Game game = gameService.createRoom("123456", creator, "red");
+
+        assertNotNull(game);
+        assertEquals("123456", game.getId());
+        assertEquals(GameStatus.WAITING, game.getStatus());
+        assertEquals(creator, game.getRedPlayer());
+        assertNull(game.getBlackPlayer());
+
+        Player joiner = new Player("p2", "Bob");
+        Game joinedGame = gameService.joinRoom("123456", joiner);
+
+        assertNotNull(joinedGame);
+        assertEquals(GameStatus.PLAYING, joinedGame.getStatus());
+        assertEquals(creator, joinedGame.getRedPlayer());
+        assertEquals(joiner, joinedGame.getBlackPlayer());
+        assertEquals(Side.RED, creator.getSide());
+        assertEquals(Side.BLACK, joiner.getSide());
+    }
+
+    @Test
+    void joinRoomShouldFailIfRoomDoesNotExistOrFull() {
+        Player joiner = new Player("p2", "Bob");
+        Game joinedGame = gameService.joinRoom("nonexistent", joiner);
+        assertNull(joinedGame);
+
+        Player creator = new Player("p1", "Alice");
+        gameService.createRoom("123456", creator, "red");
+        gameService.joinRoom("123456", joiner); // now full
+
+        Player third = new Player("p3", "Charlie");
+        Game failedGame = gameService.joinRoom("123456", third);
+        assertNull(failedGame);
+    }
 }

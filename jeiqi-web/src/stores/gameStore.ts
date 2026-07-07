@@ -155,6 +155,50 @@ export const useGameStore = defineStore('game', () => {
           window.location.href = '/'
         }
         break
+      case 'boardState':
+        reset()
+        gameId.value = msg.roomId
+        status.value = msg.status
+        redPlayer.value = msg.redPlayerName
+        blackPlayer.value = msg.blackPlayerName
+        currentTurn.value = msg.currentTurn as Side
+        mySide.value = msg.mySide === 'spectator' ? null : (msg.mySide as Side)
+        
+        if (msg.pieces) {
+          pieces.value = msg.pieces.map((p: any) => ({
+            type: p.type as PieceType,
+            side: p.side as Side,
+            revealed: p.revealed,
+            position: { col: p.position.col, row: p.position.row },
+            alive: p.alive !== undefined ? p.alive : true
+          }))
+        }
+        if (msg.capturedPieces) {
+          capturedPieces.value = msg.capturedPieces.map((p: any) => ({
+            type: p.type as PieceType,
+            side: p.side as Side,
+            revealed: p.revealed,
+            position: { col: p.position.col, row: p.position.row },
+            alive: false
+          }))
+        }
+        if (msg.moveHistory) {
+          moveHistory.value = msg.moveHistory.map((m: any) => ({
+            source: m.source,
+            destination: m.destination,
+            type: m.type,
+            moveNumber: m.moveNumber,
+            side: m.side as Side,
+            revealMove: m.revealMove,
+            notation: m.source + m.destination
+          }))
+        }
+        break
+      case 'roomCreated':
+        reset()
+        gameId.value = msg.roomId
+        status.value = 'WAITING'
+        break
       case 'error':
         console.error('Server error:', msg.message)
         break

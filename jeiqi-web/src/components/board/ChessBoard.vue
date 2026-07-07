@@ -3,7 +3,7 @@
     <BoardCoordinates :flipped="flipped" />
     <div class="board-container">
       <!-- Authentic Chinese Chess Board SVG Grid Background -->
-      <svg class="board-grid" :class="{ flipped: flipped }" width="576" height="640" viewBox="0 0 576 640" xmlns="http://www.w3.org/2000/svg">
+      <svg class="board-grid" :class="{ flipped: flipped }" :style="{ width: 'calc(var(--cell-size) * 9)', height: 'calc(var(--cell-size) * 10)' }" viewBox="0 0 576 640" xmlns="http://www.w3.org/2000/svg">
         <!-- Board wood background -->
         <rect x="0" y="0" width="576" height="640" fill="#f3d7b5" rx="6" />
         
@@ -168,12 +168,16 @@ function isLastMoveDst(col: number, row: number): boolean {
 </script>
 
 <style scoped>
-.board-wrapper { position: relative; display: inline-block; }
+.board-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .board-container {
   position: relative;
-  width: 576px;
-  height: 640px;
-  margin-left: 32px;
+  width: calc(var(--cell-size) * 9);
+  height: calc(var(--cell-size) * 10);
+  margin-left: calc(var(--cell-size) * 0.5);
   border-radius: 6px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.5);
   overflow: hidden;
@@ -218,8 +222,8 @@ function isLastMoveDst(col: number, row: number): boolean {
 }
 .board-row { display: flex; }
 .cell {
-  width: 64px;
-  height: 64px;
+  width: var(--cell-size);
+  height: var(--cell-size);
   display: flex;
   align-items: center;
   justify-content: center;

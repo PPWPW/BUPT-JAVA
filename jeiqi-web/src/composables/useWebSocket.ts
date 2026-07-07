@@ -72,5 +72,46 @@ export function useWebSocket() {
     socketService.subscribeToGame(gameId)
   }
 
-  return { connect, joinQueue, leaveQueue, sendReady, makeMove, resign, requestDraw, disconnect, subscribeGame }
+  function createRoom() {
+    socketService.send({
+      messageType: 'createRoom'
+    })
+  }
+
+  function joinRoom(roomId: string) {
+    socketService.send({
+      messageType: 'joinRoom',
+      roomId: roomId
+    })
+  }
+
+  function spectateGame(roomId: string) {
+    socketService.send({
+      messageType: 'spectateGame',
+      roomId: roomId
+    })
+  }
+
+  function getBoardState(roomId: string) {
+    socketService.send({
+      messageType: 'getBoardState',
+      roomId: roomId
+    })
+  }
+
+  return { 
+    connect, 
+    joinQueue, 
+    leaveQueue, 
+    sendReady, 
+    makeMove, 
+    resign, 
+    requestDraw, 
+    disconnect, 
+    subscribeGame,
+    createRoom,
+    joinRoom,
+    spectateGame,
+    getBoardState
+  }
 }

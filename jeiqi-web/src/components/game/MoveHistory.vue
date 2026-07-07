@@ -28,7 +28,7 @@ watch(() => props.moves.length, () => {
 </script>
 
 <style scoped>
-.move-history { background: #16213e; border-radius: 10px; padding: 16px; width: 220px; max-height: 520px; display: flex; flex-direction: column; }
+.move-history { background: #16213e; border-radius: 10px; padding: 16px; width: 220px; max-height: 340px; display: flex; flex-direction: column; }
 h3 { font-size: 14px; color: #aaa; margin-bottom: 8px; }
 .moves-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .move-item { display: flex; font-size: 14px; padding: 2px 0; align-items: center; }

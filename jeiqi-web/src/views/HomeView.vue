@@ -14,6 +14,23 @@
     <div v-else class="lobby">
       <p class="welcome">欢迎, {{ userStore.username }}</p>
       <MatchButton ref="matchBtn" @match="onMatch" @cancel="onCancelMatch" />
+      
+      <div class="custom-room-section">
+        <div class="divider"><span>或</span></div>
+        
+        <div class="room-actions">
+          <button class="btn-primary create-btn" @click="onCreateRoom">创建私人房间</button>
+          
+          <div class="join-box">
+            <input v-model="roomIdInput" placeholder="输入6位房间号" maxLength="6" />
+            <div class="join-btns">
+              <button class="btn-secondary" @click="onJoinRoom">加入对局</button>
+              <button class="btn-secondary" @click="onSpectateRoom">进入观战</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="links">
         <router-link to="/notations" class="btn-secondary">棋谱浏览</router-link>
         <button class="btn-secondary" @click="userStore.logout()">退出</button>
@@ -37,6 +54,7 @@ const gameStore = useGameStore()
 const username = ref('')
 const password = ref('')
 const error = ref<string | null>(null)
+const roomIdInput = ref('')
 const ws = useWebSocket()
 const matchBtn = ref<InstanceType<typeof MatchButton> | null>(null)
 
@@ -64,12 +82,40 @@ function onMatch() {
   })
 }
 
+function onCreateRoom() {
+  if (!userStore.userId) return
+  ws.connect(userStore.username!, () => {
+    ws.createRoom()
+  })
+}
+
+function onJoinRoom() {
+  if (!userStore.userId) return
+  if (!roomIdInput.value || roomIdInput.value.length !== 6) {
+    alert('请输入6位有效的房间号')
+    return
+  }
+  ws.connect(userStore.username!, () => {
+    ws.joinRoom(roomIdInput.value)
+  })
+}
+
+function onSpectateRoom() {
+  if (!roomIdInput.value || roomIdInput.value.length !== 6) {
+    alert('请输入6位有效的房间号')
+    return
+  }
+  router.push(`/game/${roomIdInput.value}?spectate=true`)
+}
+
 watch(
   [() => gameStore.gameId, () => gameStore.status],
   ([newId, newStatus]) => {
-    if (newId && newStatus === 'PLAYING') {
-      ws.subscribeGame(newId)
-      router.push(`/game/${newId}`)
+    if (newId) {
+      if (newStatus === 'PLAYING' || newStatus === 'WAITING') {
+        ws.subscribeGame(newId)
+        router.push(`/game/${newId}`)
+      }
     }
   }
 )
@@ -89,6 +135,67 @@ h1 { font-size: 36px; color: #e94560; margin-bottom: 40px; }
 .error { color: #e74c3c; font-size: 14px; text-align: center; }
 .welcome { font-size: 20px; margin-bottom: 20px; }
 .lobby { text-align: center; }
-.links { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+.links { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
 .links a { text-decoration: none; display: inline-block; padding: 10px 20px; }
+
+.custom-room-section {
+  margin-top: 24px;
+  width: 100%;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #555;
+  margin: 20px 0;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #333;
+}
+.divider span {
+  padding: 0 10px;
+  font-size: 14px;
+}
+.room-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.create-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+}
+.join-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #16213e;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+}
+.join-box input {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #374151;
+  background: #0f172a;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+.join-btns {
+  display: flex;
+  gap: 10px;
+}
+.join-btns button {
+  flex: 1;
+  padding: 8px;
+  font-size: 13px;
+}
 </style>

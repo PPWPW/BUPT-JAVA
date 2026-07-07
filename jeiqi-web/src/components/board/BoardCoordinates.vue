@@ -24,30 +24,30 @@ const rowsDisplay = computed(() => props.flipped ? [...rows].reverse() : rows)
 <style scoped>
 .coords-row {
   display: flex;
-  margin-left: 32px;
+  margin-left: calc(var(--cell-size) * 0.5);
   margin-bottom: 2px;
-  width: 576px;
+  width: calc(var(--cell-size) * 9);
 }
 .coords-row .coord {
-  width: 64px;
+  width: var(--cell-size);
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
   color: #a8a8b3;
 }
 .coords-col {
   position: absolute;
   left: 0;
-  top: 24px;
+  top: calc(var(--cell-size) * 0.35);
   display: flex;
   flex-direction: column;
-  width: 32px;
+  width: calc(var(--cell-size) * 0.5);
 }
 .coords-col .coord {
-  height: 64px;
-  line-height: 64px;
+  height: var(--cell-size);
+  line-height: var(--cell-size);
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
   color: #a8a8b3;
 }
