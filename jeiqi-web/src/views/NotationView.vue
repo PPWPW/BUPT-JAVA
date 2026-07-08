@@ -6,7 +6,7 @@
       <div class="players">{{ n.redPlayerName || '红方' }} vs {{ n.blackPlayerName || '黑方' }}</div>
       <div class="meta">
         <span>{{ n.result || '*' }}</span>
-        <span>{{ n.gameDate }}</span>
+        <span>{{ formatDate(n.gameDate) }}</span>
         <span>{{ n.moveCount }} 手</span>
       </div>
     </div>
@@ -21,6 +21,20 @@ import { getNotations } from '../services/api'
 
 const router = useRouter()
 const notations = ref<any[]>([])
+
+function formatDate(timestamp: any): string {
+  if (!timestamp) return ''
+  const date = new Date(Number(timestamp))
+  if (isNaN(date.getTime())) return String(timestamp)
+  
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
 
 onMounted(async () => {
   try { notations.value = await getNotations() } catch (e) { console.error(e) }
