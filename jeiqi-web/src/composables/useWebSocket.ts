@@ -99,6 +99,43 @@ export function useWebSocket() {
     })
   }
 
+  function sendChat(roomId: string, chatType: string, content: string) {
+    socketService.send({
+      messageType: 'sendChat',
+      roomId: roomId,
+      chatType: chatType,
+      content: content
+    })
+  }
+
+  function requestRematch(roomId: string) {
+    socketService.send({
+      messageType: 'requestRematch',
+      roomId: roomId
+    })
+  }
+
+  function acceptRematch(roomId: string) {
+    socketService.send({
+      messageType: 'acceptRematch',
+      roomId: roomId
+    })
+  }
+
+  function declineRematch(roomId: string) {
+    socketService.send({
+      messageType: 'declineRematch',
+      roomId: roomId
+    })
+  }
+
+  function leaveRoom(roomId: string) {
+    socketService.send({
+      messageType: 'leaveRoom',
+      roomId: roomId
+    })
+  }
+
   return { 
     connect, 
     joinQueue, 
@@ -112,6 +149,11 @@ export function useWebSocket() {
     createRoom,
     joinRoom,
     spectateGame,
-    getBoardState
+    getBoardState,
+    sendChat,
+    requestRematch,
+    acceptRematch,
+    declineRematch,
+    leaveRoom
   }
 }

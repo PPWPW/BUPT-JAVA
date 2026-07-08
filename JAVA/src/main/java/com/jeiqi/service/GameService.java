@@ -89,7 +89,7 @@ public class GameService {
         }
 
         gameRepository.save(game);
-        activeGames.remove(gameId);
+        // activeGames.remove(gameId); // Retained for rematch screen
         timerManager.cancelTimer(gameId);
         return result;
     }
@@ -136,7 +136,7 @@ public class GameService {
                 }
 
                 gameRepository.save(game);
-                activeGames.remove(gameId);
+                // activeGames.remove(gameId); // Retained for rematch screen
                 timerManager.cancelTimer(gameId);
                 return new DrawResult(DrawResult.Status.ACCEPTED, game.getDrawRequestedBy(), result);
             } else {
@@ -169,7 +169,7 @@ public class GameService {
         }
 
         gameRepository.save(game);
-        activeGames.remove(gameId);
+        // activeGames.remove(gameId); // Retained for rematch screen
         return result;
     }
 
@@ -210,7 +210,7 @@ public class GameService {
         }
 
         gameRepository.save(game);
-        activeGames.remove(gameId);
+        // activeGames.remove(gameId); // Retained for rematch screen
         timerManager.cancelTimer(gameId);
         return result;
     }
@@ -263,5 +263,55 @@ public class GameService {
 
     public GameFlow getGameFlow() {
         return gameFlow;
+    }
+
+    public Game getGameForPlayer(String playerId) {
+        return activeGames.values().stream()
+            .filter(g -> playerId.equals(g.getRedPlayerId()) || playerId.equals(g.getBlackPlayerId()))
+            .findFirst().orElse(null);
+    }
+
+    public void removeGame(String gameId) {
+        activeGames.remove(gameId);
+    }
+
+    public Game rematch(String gameId) {
+        Game game = activeGames.get(gameId);
+        if (game == null) {
+            return null;
+        }
+
+        Player oldRed = game.getRedPlayer();
+        Player oldBlack = game.getBlackPlayer();
+
+        if (oldRed != null && oldBlack != null) {
+            oldRed.setSide(Side.BLACK);
+            oldBlack.setSide(Side.RED);
+
+            game.setRedPlayer(oldBlack);
+            game.setBlackPlayer(oldRed);
+            game.setRedPlayerId(oldBlack.getId());
+            game.setRedPlayerName(oldBlack.getName());
+            game.setBlackPlayerId(oldRed.getId());
+            game.setBlackPlayerName(oldRed.getName());
+        }
+
+        game.setStatus(GameStatus.PLAYING);
+        game.setWinner(null);
+        game.setResultReason(null);
+        game.setGameEndTime(0);
+        game.setCurrentTurn(Side.RED);
+        game.setMovesWithoutCapture(0);
+        game.resetRepeatedCheckCount(Side.RED);
+        game.resetRepeatedCheckCount(Side.BLACK);
+        game.setDrawRequestedBy(null);
+        game.getMoveHistory().clear();
+
+        game.start();
+
+        timerManager.cancelTimer(gameId);
+        timerManager.startTimer(gameId, () -> triggerTimeout(gameId));
+
+        return game;
     }
 }

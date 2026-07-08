@@ -19,6 +19,11 @@ export const useGameStore = defineStore('game', () => {
   const legalMoves = ref<{ col: number; row: number }[]>([])
   const drawRequestReceived = ref(false)
   const drawRejected = ref(false)
+  
+  const activeEmoteTop = ref<{ content: string; type: 'EMOTE' | 'PHRASE' } | null>(null)
+  const activeEmoteBottom = ref<{ content: string; type: 'EMOTE' | 'PHRASE' } | null>(null)
+  const opponentMuted = ref(false)
+  const rematchStatus = ref<'NONE' | 'SENT' | 'RECEIVED' | 'DECLINED'>('NONE')
 
   function setGame(data: GameState) {
     gameId.value = data.id
@@ -199,6 +204,37 @@ export const useGameStore = defineStore('game', () => {
         gameId.value = msg.roomId
         status.value = 'WAITING'
         break
+      case 'chatMessage':
+        {
+          const isMyMessage = msg.senderSide === mySide.value
+          const targetRef = isMyMessage ? activeEmoteBottom : activeEmoteTop
+          
+          if (!isMyMessage && opponentMuted.value) {
+            break
+          }
+
+          targetRef.value = {
+            content: msg.content,
+            type: msg.chatType
+          }
+          setTimeout(() => {
+            if (targetRef.value && targetRef.value.content === msg.content) {
+              targetRef.value = null
+            }
+          }, 3000)
+        }
+        break
+      case 'rematchRequest':
+        rematchStatus.value = 'RECEIVED'
+        break
+      case 'rematchDeclined':
+        if (msg.reason === 'opponentLeft') {
+          alert('对方已离开房间')
+        } else {
+          alert('对方拒绝了再来一局的申请')
+        }
+        rematchStatus.value = 'NONE'
+        break
       case 'error':
         console.error('Server error:', msg.message)
         break
@@ -219,6 +255,9 @@ export const useGameStore = defineStore('game', () => {
     legalMoves.value = []
     drawRequestReceived.value = false
     drawRejected.value = false
+    activeEmoteTop.value = null
+    activeEmoteBottom.value = null
+    rematchStatus.value = 'NONE'
   }
 
   return {
@@ -226,6 +265,7 @@ export const useGameStore = defineStore('game', () => {
     pieces, capturedPieces, moveHistory, winner, reason,
     selectedPos, legalMoves,
     drawRequestReceived, drawRejected,
+    activeEmoteTop, activeEmoteBottom, opponentMuted, rematchStatus,
     setGame, updateFromServer, reset,
   }
 })

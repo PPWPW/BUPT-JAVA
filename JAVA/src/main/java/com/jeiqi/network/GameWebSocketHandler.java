@@ -24,6 +24,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private static final ConcurrentHashMap<String, Boolean> playerReadyMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Set<WebSocketSession>> gameSpectators = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<WebSocketSession, String> sessionSpectatingMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, String> rematchRequests = new ConcurrentHashMap<>();
 
     private final ObjectMapper objectMapper;
     private final MatchmakingService matchmakingService;
@@ -53,18 +54,32 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             playerReadyMap.remove(userId);
             matchmakingService.leaveQueue(userId);
 
-            Game game = gameService.getActiveGameForPlayer(userId);
+            Game game = gameService.getGameForPlayer(userId);
             if (game != null) {
-                GameResult result = gameService.handleDisconnect(game.getId(), userId);
-                if (result != null) {
+                if (game.getStatus() == com.jeiqi.model.GameStatus.PLAYING) {
+                    GameResult result = gameService.handleDisconnect(game.getId(), userId);
+                    if (result != null) {
+                        String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
+                        WebSocketSession oppSession = activeSessions.get(opponentId);
+                        if (oppSession != null && oppSession.isOpen()) {
+                            sendJson(oppSession, Map.of(
+                                "messageType", "gameOver",
+                                "winner", opponentId.equals(game.getRedPlayerId()) ? "red" : "black",
+                                "reason", "disconnect",
+                                "winnerId", opponentId
+                            ));
+                        }
+                    }
+                }
+
+                if (rematchRequests.containsKey(game.getId())) {
+                    rematchRequests.remove(game.getId());
                     String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
                     WebSocketSession oppSession = activeSessions.get(opponentId);
                     if (oppSession != null && oppSession.isOpen()) {
                         sendJson(oppSession, Map.of(
-                            "messageType", "gameOver",
-                            "winner", opponentId.equals(game.getRedPlayerId()) ? "red" : "black",
-                            "reason", "disconnect",
-                            "winnerId", opponentId
+                            "messageType", "rematchDeclined",
+                            "reason", "opponentLeft"
                         ));
                     }
                 }
@@ -114,6 +129,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case "joinRoom" -> handleJoinRoom(session, msg);
             case "spectateGame" -> handleSpectateGame(session, msg);
             case "getBoardState" -> handleGetBoardState(session, msg);
+            case "sendChat" -> handleSendChat(session, msg);
+            case "requestRematch" -> handleRequestRematch(session, msg);
+            case "acceptRematch" -> handleAcceptRematch(session, msg);
+            case "declineRematch" -> handleDeclineRematch(session, msg);
             default -> sendError(session, 4001, "未知 messageType");
         }
     }
@@ -814,5 +833,143 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             "capturedPieces", capturedList,
             "moveHistory", moveHistoryList
         ));
+    }
+
+    private void handleSendChat(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String userId = sessionUserMap.get(session);
+        if (userId == null) return;
+        String roomId = (String) msg.get("roomId");
+        String chatType = (String) msg.get("chatType");
+        String content = (String) msg.get("content");
+
+        Game game = gameService.getGame(roomId);
+        if (game == null) return;
+
+        String senderSide = userId.equals(game.getRedPlayerId()) ? "red" : "black";
+
+        Map<String, Object> payload = Map.of(
+            "messageType", "chatMessage",
+            "senderSide", senderSide,
+            "chatType", chatType,
+            "content", content
+        );
+
+        broadcastToGame(game, payload);
+    }
+
+    private void handleLeaveRoom(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String userId = sessionUserMap.get(session);
+        if (userId == null) return;
+        String roomId = (String) msg.get("roomId");
+
+        rematchRequests.remove(roomId);
+        Game game = gameService.getGame(roomId);
+        if (game != null) {
+            gameService.removeGame(roomId);
+            String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
+            WebSocketSession oppSession = activeSessions.get(opponentId);
+            if (oppSession != null && oppSession.isOpen()) {
+                sendJson(oppSession, Map.of(
+                    "messageType", "rematchDeclined",
+                    "reason", "opponentLeft"
+                ));
+            }
+        }
+    }
+
+    private void handleRequestRematch(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String userId = sessionUserMap.get(session);
+        if (userId == null) return;
+        String roomId = (String) msg.get("roomId");
+
+        Game game = gameService.getGame(roomId);
+        if (game == null) return;
+
+        String requester = rematchRequests.get(roomId);
+        if (requester != null && !requester.equals(userId)) {
+            rematchRequests.remove(roomId);
+            Game newGame = gameService.rematch(roomId);
+            if (newGame != null) {
+                broadcastBoardState(newGame);
+            }
+        } else {
+            rematchRequests.put(roomId, userId);
+            String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
+            WebSocketSession oppSession = activeSessions.get(opponentId);
+            if (oppSession != null && oppSession.isOpen()) {
+                sendJson(oppSession, Map.of(
+                    "messageType", "rematchRequest"
+                ));
+            }
+        }
+    }
+
+    private void handleAcceptRematch(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String userId = sessionUserMap.get(session);
+        if (userId == null) return;
+        String roomId = (String) msg.get("roomId");
+
+        rematchRequests.remove(roomId);
+        Game newGame = gameService.rematch(roomId);
+        if (newGame != null) {
+            broadcastBoardState(newGame);
+        }
+    }
+
+    private void handleDeclineRematch(WebSocketSession session, Map<String, Object> msg) throws IOException {
+        String userId = sessionUserMap.get(session);
+        if (userId == null) return;
+        String roomId = (String) msg.get("roomId");
+
+        rematchRequests.remove(roomId);
+        Game game = gameService.getGame(roomId);
+        if (game == null) return;
+
+        String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
+        WebSocketSession oppSession = activeSessions.get(opponentId);
+        if (oppSession != null && oppSession.isOpen()) {
+            sendJson(oppSession, Map.of(
+                "messageType", "rematchDeclined",
+                "reason", "declined"
+            ));
+        }
+    }
+
+    private void broadcastToGame(Game game, Object payload) throws IOException {
+        WebSocketSession redSession = activeSessions.get(game.getRedPlayerId());
+        WebSocketSession blackSession = activeSessions.get(game.getBlackPlayerId());
+        if (redSession != null && redSession.isOpen()) {
+            sendJson(redSession, payload);
+        }
+        if (blackSession != null && blackSession.isOpen()) {
+            sendJson(blackSession, payload);
+        }
+        Set<WebSocketSession> specs = gameSpectators.get(game.getId());
+        if (specs != null && !specs.isEmpty()) {
+            for (WebSocketSession specSession : specs) {
+                if (specSession.isOpen()) {
+                    sendJson(specSession, payload);
+                }
+            }
+        }
+    }
+
+    private void broadcastBoardState(Game game) throws IOException {
+        WebSocketSession redSession = activeSessions.get(game.getRedPlayerId());
+        WebSocketSession blackSession = activeSessions.get(game.getBlackPlayerId());
+        if (redSession != null && redSession.isOpen()) {
+            sendBoardState(redSession, game);
+        }
+        if (blackSession != null && blackSession.isOpen()) {
+            sendBoardState(blackSession, game);
+        }
+        Set<WebSocketSession> specs = gameSpectators.get(game.getId());
+        if (specs != null && !specs.isEmpty()) {
+            for (WebSocketSession specSession : specs) {
+                if (specSession.isOpen()) {
+                    sendBoardState(specSession, game);
+                }
+            }
+        }
     }
 }

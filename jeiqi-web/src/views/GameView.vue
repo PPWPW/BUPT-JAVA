@@ -27,6 +27,14 @@
           <div class="player-info">
             <span class="avatar-dot" :class="topPlayerSide"></span>
             <span class="username">{{ topPlayerName }}</span>
+            
+            <!-- Floating bubble for top player -->
+            <transition name="pop">
+              <div v-if="gameStore.activeEmoteTop" class="chat-bubble top">
+                {{ gameStore.activeEmoteTop.content }}
+              </div>
+            </transition>
+
             <div class="captured-mini-list">
               <div 
                 v-for="(p, index) in topCaptures" 
@@ -38,8 +46,21 @@
               </div>
             </div>
           </div>
-          <div class="player-timer" :class="{ active: isTopActive, black: topPlayerSide === 'black', low: isTopActive && topTime <= 10 }">
-            {{ topTime }}s
+          
+          <div class="player-row-right">
+            <div class="player-timer" :class="{ active: isTopActive, black: topPlayerSide === 'black', low: isTopActive && topTime <= 10 }">
+              {{ topTime }}s
+            </div>
+            <!-- Mute button (only for players, not spectators) -->
+            <button 
+              v-if="gameStore.mySide" 
+              class="mute-btn" 
+              :class="{ muted: gameStore.opponentMuted }"
+              @click="gameStore.opponentMuted = !gameStore.opponentMuted"
+              :title="gameStore.opponentMuted ? '取消屏蔽对方' : '屏蔽对方表情'"
+            >
+              {{ gameStore.opponentMuted ? '🔇' : '🔊' }}
+            </button>
           </div>
         </div>
 
@@ -61,6 +82,14 @@
           <div class="player-info">
             <span class="avatar-dot" :class="bottomPlayerSide"></span>
             <span class="username">{{ bottomPlayerName }}</span>
+            
+            <!-- Floating bubble for bottom player -->
+            <transition name="pop">
+              <div v-if="gameStore.activeEmoteBottom" class="chat-bubble bottom">
+                {{ gameStore.activeEmoteBottom.content }}
+              </div>
+            </transition>
+
             <div class="captured-mini-list">
               <div 
                 v-for="(p, index) in bottomCaptures" 
@@ -72,8 +101,35 @@
               </div>
             </div>
           </div>
-          <div class="player-timer" :class="{ active: isBottomActive, black: bottomPlayerSide === 'black', low: isBottomActive && bottomTime <= 10 }">
-            {{ bottomTime }}s
+          
+          <div class="player-row-right">
+            <!-- Chat panel trigger button -->
+            <div v-if="gameStore.mySide" class="chat-trigger-wrapper">
+              <button class="chat-trigger-btn" @click.stop="toggleChatPanel" title="发送表情或常用语">💬</button>
+              
+              <!-- Popover Panel -->
+              <div v-if="showChatPanel" class="chat-popover-panel" @click.stop>
+                <div class="chat-popover-tabs">
+                  <button :class="{ active: activeTab === 'emoji' }" @click="activeTab = 'emoji'">表情</button>
+                  <button :class="{ active: activeTab === 'phrase' }" @click="activeTab = 'phrase'">常用语</button>
+                </div>
+                <div class="chat-popover-body">
+                  <div v-if="activeTab === 'emoji'" class="emoji-picker-grid">
+                    <button v-for="em in emojis" :key="em" @click="sendEmoji(em)" class="emoji-btn">{{ em }}</button>
+                  </div>
+                  <div v-else class="phrase-picker-list">
+                    <button v-for="ph in phrases" :key="ph" @click="sendPhrase(ph)" class="phrase-btn">{{ ph }}</button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Backdrop to close popup on click outside -->
+              <div v-if="showChatPanel" class="chat-popover-backdrop" @click="showChatPanel = false"></div>
+            </div>
+
+            <div class="player-timer" :class="{ active: isBottomActive, black: bottomPlayerSide === 'black', low: isBottomActive && bottomTime <= 10 }">
+              {{ bottomTime }}s
+            </div>
           </div>
         </div>
       </div>
@@ -114,8 +170,12 @@
       :reason="gameStore.reason"
       :mySide="gameStore.mySide"
       :showReplay="true"
-      @close="router.push('/')"
+      :rematchStatus="gameStore.rematchStatus"
+      @close="onExitToLobby"
       @replay="router.push(`/replay/${gameStore.gameId}`)"
+      @requestRematch="onRequestRematch"
+      @acceptRematch="onAcceptRematch"
+      @declineRematch="onDeclineRematch"
     />
 
     <!-- Draw Request Modal -->
@@ -268,10 +328,16 @@ function onExitToLobby() {
     if (confirm('对局正在进行中，直接返回大厅将视作认输，是否确定？')) {
       ws.resign()
       setTimeout(() => {
+        if (gameStore.gameId) {
+          ws.leaveRoom(gameStore.gameId)
+        }
         router.push('/')
       }, 300)
     }
   } else {
+    if (gameStore.gameId) {
+      ws.leaveRoom(gameStore.gameId)
+    }
     router.push('/')
   }
 }
@@ -325,7 +391,60 @@ watch(() => gameStore.drawRejected, (val) => {
   }
 })
 
+const showChatPanel = ref(false)
+const activeTab = ref<'emoji' | 'phrase'>('emoji')
+const emojis = ['😄', '😭', '😠', '👍', '😮', '🤝']
+const phrases = [
+  '祝你好运！',
+  '承让承让！',
+  '手滑了...',
+  '再来一局？',
+  '精彩的对局！',
+  '思考中...'
+]
+
+function toggleChatPanel() {
+  showChatPanel.value = !showChatPanel.value
+}
+
+function sendEmoji(emoji: string) {
+  if (gameStore.gameId) {
+    ws.sendChat(gameStore.gameId, 'EMOTE', emoji)
+  }
+  showChatPanel.value = false
+}
+
+function sendPhrase(phrase: string) {
+  if (gameStore.gameId) {
+    ws.sendChat(gameStore.gameId, 'PHRASE', phrase)
+  }
+  showChatPanel.value = false
+}
+
+function onRequestRematch() {
+  if (gameStore.gameId) {
+    ws.requestRematch(gameStore.gameId)
+    gameStore.rematchStatus = 'SENT'
+  }
+}
+
+function onAcceptRematch() {
+  if (gameStore.gameId) {
+    ws.acceptRematch(gameStore.gameId)
+  }
+}
+
+function onDeclineRematch() {
+  if (gameStore.gameId) {
+    ws.declineRematch(gameStore.gameId)
+    gameStore.rematchStatus = 'NONE'
+  }
+}
+
 onUnmounted(() => {
+  if (gameStore.gameId) {
+    ws.leaveRoom(gameStore.gameId)
+  }
   gameStore.reset()
 })
 </script>
@@ -703,5 +822,206 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   justify-content: center;
+}
+
+/* Speech bubbles & Chat popover styles */
+.player-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mute-btn {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+
+.mute-btn:hover {
+  opacity: 1;
+}
+
+.chat-trigger-wrapper {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+.chat-trigger-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: transform 0.2s;
+  user-select: none;
+  padding: 0;
+}
+
+.chat-trigger-btn:hover {
+  transform: scale(1.2);
+  opacity: 1;
+}
+
+/* Chat bubble styling */
+.player-info {
+  position: relative;
+}
+
+.chat-bubble {
+  position: absolute;
+  top: -34px;
+  left: 24px;
+  background: #27ae60;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.chat-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 10px;
+  border-width: 5px 5px 0;
+  border-style: solid;
+  border-color: #27ae60 transparent;
+  display: block;
+  width: 0;
+}
+
+.chat-bubble.top {
+  background: #34495e;
+}
+
+.chat-bubble.top::after {
+  border-color: #34495e transparent;
+}
+
+/* Popover Panel styling */
+.chat-popover-panel {
+  position: absolute;
+  bottom: 28px;
+  right: -80px;
+  width: 220px;
+  background: #16213e;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: transparent;
+}
+
+.chat-popover-tabs {
+  display: flex;
+  border-bottom: 1px solid #1f2937;
+}
+
+.chat-popover-tabs button {
+  flex: 1;
+  background: #0f172a;
+  border: none;
+  color: #8892b0;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 0;
+}
+
+.chat-popover-tabs button.active {
+  background: #16213e;
+  color: #fff;
+}
+
+.chat-popover-body {
+  padding: 10px;
+  background: #16213e;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.emoji-btn {
+  background: #1f2937;
+  border: none;
+  font-size: 18px;
+  padding: 6px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.emoji-btn:hover {
+  background: #374151;
+}
+
+.phrase-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phrase-btn {
+  background: #1f2937;
+  border: none;
+  color: #fff;
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.phrase-btn:hover {
+  background: #374151;
+}
+
+/* Animations */
+.pop-enter-active {
+  animation: pop-in 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.pop-leave-active {
+  transition: opacity 0.2s;
+}
+.pop-leave-to {
+  opacity: 0;
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.6) translateY(8px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 </style>

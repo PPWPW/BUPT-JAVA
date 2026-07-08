@@ -193,4 +193,31 @@ class GameServiceTest {
         Game failedGame = gameService.joinRoom("123456", third);
         assertNull(failedGame);
     }
+
+    @Test
+    void shouldSwapSidesAndResetOnRematch() {
+        Player red = new Player("p1", "Alice");
+        Player black = new Player("p2", "Bob");
+        Game game = gameService.createGame(red, black);
+        String gameId = game.getId();
+
+        gameService.resign(gameId, "p1");
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals(Side.BLACK, game.getWinner());
+
+        Game rematchedGame = gameService.rematch(gameId);
+
+        assertNotNull(rematchedGame);
+        assertEquals(GameStatus.PLAYING, rematchedGame.getStatus());
+        assertNull(rematchedGame.getWinner());
+        assertNull(rematchedGame.getResultReason());
+
+        assertEquals("Bob", rematchedGame.getRedPlayerName());
+        assertEquals("p2", rematchedGame.getRedPlayerId());
+        assertEquals("Alice", rematchedGame.getBlackPlayerName());
+        assertEquals("p1", rematchedGame.getBlackPlayerId());
+
+        assertEquals(Side.RED, rematchedGame.getRedPlayer().getSide());
+        assertEquals(Side.BLACK, rematchedGame.getBlackPlayer().getSide());
+    }
 }
