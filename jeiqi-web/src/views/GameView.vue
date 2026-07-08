@@ -364,6 +364,7 @@ watch(() => gameStore.status, (s) => {
   if (s === 'PLAYING') {
     timer.reset(60)
     timer.start()
+    showResult.value = false
   }
   if (s === 'FINISHED') {
     timer.stop()
@@ -379,9 +380,7 @@ watch(() => gameStore.currentTurn, () => {
 })
 
 watch(() => gameStore.drawRequestReceived, (val) => {
-  if (val) {
-    showDrawRequestModal.value = true
-  }
+  showDrawRequestModal.value = val
 })
 
 watch(() => gameStore.drawRejected, (val) => {
