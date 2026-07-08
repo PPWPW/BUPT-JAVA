@@ -459,7 +459,7 @@ onUnmounted(() => {
   padding: 10px;
   background: #1a1a2e;
   box-sizing: border-box;
-  --cell-size: min(64px, 6.8vh);
+  --cell-size: min(76px, 7.8vh);
 }
 
 .game-main {
