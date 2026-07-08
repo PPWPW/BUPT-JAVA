@@ -44,7 +44,7 @@ public class GameFlow {
             captured = true;
             if (!target.isRevealed()) {
                 target.setCapturedAsHidden(true);
-                PieceType capturedType = pieceAssigner.assignType(target.getSide());
+                PieceType capturedType = game.getPieceAssigner().assignType(target.getSide());
                 target.reveal(capturedType);
             }
             game.resetMovesWithoutCapture();
@@ -55,7 +55,7 @@ public class GameFlow {
         board.movePiece(from, to);
 
         if (!piece.isRevealed()) {
-            revealedType = pieceAssigner.assignType(piece.getSide());
+            revealedType = game.getPieceAssigner().assignType(piece.getSide());
             board.revealPiece(to, revealedType);
         }
 

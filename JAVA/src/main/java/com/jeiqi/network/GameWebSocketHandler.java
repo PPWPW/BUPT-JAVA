@@ -254,15 +254,17 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (game == null) return;
 
         String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
-        WebSocketSession oppSession = activeSessions.get(opponentId);
-        if (oppSession != null && oppSession.isOpen()) {
-            sendJson(oppSession, Map.of(
-                "messageType", "roomInfo",
-                "opponentReady", true
-            ));
+        if (opponentId != null) {
+            WebSocketSession oppSession = activeSessions.get(opponentId);
+            if (oppSession != null && oppSession.isOpen()) {
+                sendJson(oppSession, Map.of(
+                    "messageType", "roomInfo",
+                    "opponentReady", true
+                ));
+            }
         }
 
-        if (Boolean.TRUE.equals(playerReadyMap.get(opponentId))) {
+        if (opponentId != null && Boolean.TRUE.equals(playerReadyMap.get(opponentId))) {
             game.start();
 
             WebSocketSession redSession = activeSessions.get(game.getRedPlayerId());

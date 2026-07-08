@@ -7,6 +7,7 @@ import com.jeiqi.engine.MoveGenerator;
 import com.jeiqi.model.Game;
 import com.jeiqi.model.GameResult;
 import com.jeiqi.model.GameStatus;
+import com.jeiqi.model.GameNotation;
 import com.jeiqi.model.Move;
 import com.jeiqi.model.MoveResult;
 import com.jeiqi.model.Player;
@@ -315,7 +316,17 @@ public class GameService {
         game.setDrawRequestedBy(null);
         game.getMoveHistory().clear();
 
+        game.setPieceAssigner(new com.jeiqi.engine.RandomPieceAssigner());
         game.start();
+
+        GameNotation newNotation = new GameNotation(gameId + "-" + System.currentTimeMillis());
+        if (oldBlack != null) {
+            newNotation.setRedPlayerName(oldBlack.getName());
+        }
+        if (oldRed != null) {
+            newNotation.setBlackPlayerName(oldRed.getName());
+        }
+        game.setNotation(newNotation);
 
         timerManager.cancelTimer(gameId);
         timerManager.startTimer(gameId, () -> triggerTimeout(gameId));

@@ -12,6 +12,7 @@ import jakarta.persistence.Transient;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.jeiqi.engine.RandomPieceAssigner;
 
 @Entity
 @Table(name = "games")
@@ -41,6 +42,9 @@ public class Game {
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "game_id", referencedColumnName = "gameId")
     private GameNotation notation;
+
+    @Transient
+    private RandomPieceAssigner pieceAssigner;
 
     private long gameStartTime;
     private long gameEndTime;
@@ -76,6 +80,7 @@ public class Game {
         this.repeatedCheckCountRed = 0;
         this.repeatedCheckCountBlack = 0;
         this.drawRequestedBy = null;
+        this.pieceAssigner = new RandomPieceAssigner();
     }
 
     public Game(String id) {
@@ -243,6 +248,9 @@ public class Game {
 
     public String getDrawRequestedBy() { return drawRequestedBy; }
     public void setDrawRequestedBy(String drawRequestedBy) { this.drawRequestedBy = drawRequestedBy; }
+
+    public RandomPieceAssigner getPieceAssigner() { return pieceAssigner; }
+    public void setPieceAssigner(RandomPieceAssigner pieceAssigner) { this.pieceAssigner = pieceAssigner; }
 
     @Override
     public String toString() {
