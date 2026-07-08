@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.jeiqi.controller.UserControllerTest
 -------------------------------------------------------------------------------
-Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.480 s -- in com.jeiqi.controller.UserControllerTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.856 s -- in com.jeiqi.controller.UserControllerTest

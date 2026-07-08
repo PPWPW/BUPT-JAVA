@@ -971,4 +971,21 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             }
         }
     }
+
+    @org.springframework.context.event.EventListener
+    public void handleGameTimeout(com.jeiqi.event.GameTimeoutEvent event) {
+        com.jeiqi.model.Game game = gameService.getGame(event.getGameId());
+        if (game != null) {
+            String winner = event.getResult().getWinner() == com.jeiqi.model.Side.RED ? "red" : "black";
+            try {
+                broadcastToGame(game, Map.of(
+                    "messageType", "gameOver",
+                    "winner", winner,
+                    "reason", "timeout"
+                ));
+            } catch (IOException e) {
+                System.err.println("Error broadcasting timeout: " + e.getMessage());
+            }
+        }
+    }
 }
