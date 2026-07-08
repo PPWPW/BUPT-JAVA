@@ -38,8 +38,16 @@ public class GameService {
         this.gameFlow = new GameFlow(ruleEngine, pieceAssigner);
     }
 
+    public String generateUniqueRoomId() {
+        String roomId = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
+        while (activeGames.containsKey(roomId)) {
+            roomId = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
+        }
+        return roomId;
+    }
+
     public Game createGame(Player redPlayer, Player blackPlayer) {
-        String gameId = "game-" + System.currentTimeMillis();
+        String gameId = generateUniqueRoomId();
         Game game = new Game(gameId);
         redPlayer.setSide(Side.RED);
         blackPlayer.setSide(Side.BLACK);

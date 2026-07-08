@@ -41,7 +41,8 @@ class GameServiceTest {
 
         assertNotNull(game);
         assertNotNull(game.getId());
-        assertTrue(game.getId().startsWith("game-"));
+        assertEquals(6, game.getId().length());
+        assertTrue(game.getId().matches("\\d{6}"));
         assertEquals(GameStatus.PLAYING, game.getStatus());
         assertEquals(Side.RED, red.getSide());
         assertEquals(Side.BLACK, black.getSide());

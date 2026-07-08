@@ -633,10 +633,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        String roomId = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
-        while (gameService.getGame(roomId) != null) {
-            roomId = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
-        }
+        String roomId = gameService.generateUniqueRoomId();
 
         Player player = new Player(userId, userId);
         player.setConnection("WS");
