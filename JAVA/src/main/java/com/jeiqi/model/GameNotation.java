@@ -32,7 +32,7 @@ public class GameNotation {
     private String result;
     private String reason;
 
-    @Temporal(TemporalType.DATE)
+    @Temporal(TemporalType.TIMESTAMP)
     private Date gameDate;
 
     public GameNotation() {
