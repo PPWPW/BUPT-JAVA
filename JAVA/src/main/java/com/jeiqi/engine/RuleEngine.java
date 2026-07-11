@@ -66,6 +66,26 @@ public class RuleEngine {
             return MoveResult.invalid("不合法的走法");
         }
 
+        // Simulate move to check if it causes Kings to face each other
+        if (target != null) {
+            board.removeFromSideList(target);
+        }
+        board.setPieceAt(to, piece);
+        board.setPieceAt(from, null);
+
+        boolean kingsFacing = isKingsFacing(board);
+
+        // Revert move
+        board.setPieceAt(from, piece);
+        board.setPieceAt(to, target);
+        if (target != null) {
+            board.addToSideList(target);
+        }
+
+        if (kingsFacing) {
+            return MoveResult.invalid("将帅不能对面");
+        }
+
         return MoveResult.success(target != null, null);
     }
 
