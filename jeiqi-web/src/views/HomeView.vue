@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useGameStore } from '../stores/gameStore'
@@ -122,8 +122,15 @@ watch(
 
 function onCancelMatch() {
   ws.leaveQueue()
-  ws.disconnect()
 }
+
+onMounted(() => {
+  if (userStore.userId) {
+    ws.connect(userStore.username!, () => {
+      console.log('HomeView auto-connected user:', userStore.username)
+    })
+  }
+})
 </script>
 
 <style scoped>

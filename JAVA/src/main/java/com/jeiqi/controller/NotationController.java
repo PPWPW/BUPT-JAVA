@@ -27,6 +27,12 @@ public class NotationController {
         return notationService.listNotations();
     }
 
+    @org.springframework.web.bind.annotation.DeleteMapping
+    public ResponseEntity<Void> clearNotations() {
+        notationService.clearAllNotations();
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/{gameId}")
     public ResponseEntity<GameNotation> getNotation(@PathVariable String gameId) {
         Optional<GameNotation> notation = notationService.getNotation(gameId);

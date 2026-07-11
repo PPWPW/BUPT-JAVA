@@ -362,7 +362,7 @@ onMounted(() => {
 
 watch(() => gameStore.status, (s) => {
   if (s === 'PLAYING') {
-    timer.reset(60)
+    timer.reset(gameStore.remainingSeconds || 60)
     timer.start()
     showResult.value = false
   }
@@ -375,6 +375,13 @@ watch(() => gameStore.status, (s) => {
 watch(() => gameStore.currentTurn, () => {
   if (gameStore.status === 'PLAYING') {
     timer.reset(60)
+    timer.start()
+  }
+})
+
+watch(() => gameStore.remainingSeconds, (newVal) => {
+  if (gameStore.status === 'PLAYING') {
+    timer.reset(newVal)
     timer.start()
   }
 })

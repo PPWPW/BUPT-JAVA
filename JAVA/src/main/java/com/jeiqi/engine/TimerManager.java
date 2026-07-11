@@ -54,4 +54,14 @@ public class TimerManager {
         gameTimers.clear();
         scheduler.shutdown();
     }
+
+    public int getRemainingSeconds(String gameId) {
+        ScheduledFuture<?> future = gameTimers.get(gameId);
+        if (future != null) {
+            long delayMs = future.getDelay(TimeUnit.MILLISECONDS);
+            long remainingMs = Math.max(0, delayMs - toleranceMs);
+            return (int) Math.min(60, (remainingMs + 999) / 1000);
+        }
+        return 60;
+    }
 }

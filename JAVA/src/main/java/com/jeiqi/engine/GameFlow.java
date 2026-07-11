@@ -83,6 +83,7 @@ public class GameFlow {
         }
 
         move.setType(revealedType != null ? revealedType.getCode() : null);
+        move.setRevealMove(revealedType != null);
         move.setTurnStartTime(System.currentTimeMillis());
         move.setServerReceiveTime(System.currentTimeMillis());
         game.addMove(move);

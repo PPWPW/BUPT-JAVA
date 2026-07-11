@@ -191,9 +191,11 @@ public class GameService {
 
     public Game getActiveGameForPlayer(String playerId) {
         for (Game game : activeGames.values()) {
-            if ((game.getRedPlayerId() != null && game.getRedPlayerId().equals(playerId)) ||
-                (game.getBlackPlayerId() != null && game.getBlackPlayerId().equals(playerId))) {
-                return game;
+            if (game.getStatus() != GameStatus.FINISHED) {
+                if ((game.getRedPlayerId() != null && game.getRedPlayerId().equals(playerId)) ||
+                    (game.getBlackPlayerId() != null && game.getBlackPlayerId().equals(playerId))) {
+                    return game;
+                }
             }
         }
         return null;
@@ -332,5 +334,9 @@ public class GameService {
         timerManager.startTimer(gameId, () -> triggerTimeout(gameId));
 
         return game;
+    }
+
+    public int getRemainingSeconds(String gameId) {
+        return timerManager.getRemainingSeconds(gameId);
     }
 }

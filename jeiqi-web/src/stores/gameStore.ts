@@ -19,6 +19,7 @@ export const useGameStore = defineStore('game', () => {
   const legalMoves = ref<{ col: number; row: number }[]>([])
   const drawRequestReceived = ref(false)
   const drawRejected = ref(false)
+  const remainingSeconds = ref(60)
   
   const activeEmoteTop = ref<{ content: string; type: 'EMOTE' | 'PHRASE' } | null>(null)
   const activeEmoteBottom = ref<{ content: string; type: 'EMOTE' | 'PHRASE' } | null>(null)
@@ -158,6 +159,9 @@ export const useGameStore = defineStore('game', () => {
           alert('登录连接已失效（服务器已重启），请点击确定重新登录或注册！')
           userStore.logout()
           window.location.href = '/'
+        } else if (msg.activeGameId) {
+          gameId.value = msg.activeGameId
+          status.value = 'PLAYING'
         }
         break
       case 'boardState':
@@ -168,6 +172,7 @@ export const useGameStore = defineStore('game', () => {
         blackPlayer.value = msg.blackPlayerName
         currentTurn.value = msg.currentTurn as Side
         mySide.value = msg.mySide === 'spectator' ? null : (msg.mySide as Side)
+        remainingSeconds.value = msg.remainingSeconds !== undefined ? msg.remainingSeconds : 60
         
         if (msg.pieces) {
           pieces.value = msg.pieces.map((p: any) => ({
@@ -258,13 +263,14 @@ export const useGameStore = defineStore('game', () => {
     activeEmoteTop.value = null
     activeEmoteBottom.value = null
     rematchStatus.value = 'NONE'
+    remainingSeconds.value = 60
   }
 
   return {
     gameId, status, redPlayer, blackPlayer, currentTurn, mySide,
     pieces, capturedPieces, moveHistory, winner, reason,
     selectedPos, legalMoves,
-    drawRequestReceived, drawRejected,
+    drawRequestReceived, drawRejected, remainingSeconds,
     activeEmoteTop, activeEmoteBottom, opponentMuted, rematchStatus,
     setGame, updateFromServer, reset,
   }

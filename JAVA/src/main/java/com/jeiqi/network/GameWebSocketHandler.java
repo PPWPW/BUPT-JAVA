@@ -57,18 +57,15 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             Game game = gameService.getGameForPlayer(userId);
             if (game != null) {
                 if (game.getStatus() == com.jeiqi.model.GameStatus.PLAYING) {
-                    GameResult result = gameService.handleDisconnect(game.getId(), userId);
-                    if (result != null) {
-                        String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
-                        WebSocketSession oppSession = activeSessions.get(opponentId);
-                        if (oppSession != null && oppSession.isOpen()) {
-                            sendJson(oppSession, Map.of(
-                                "messageType", "gameOver",
-                                "winner", opponentId.equals(game.getRedPlayerId()) ? "red" : "black",
-                                "reason", "disconnect",
-                                "winnerId", opponentId
-                            ));
-                        }
+                    // Keep the game running to allow a reconnect window.
+                    // Just notify the opponent that the player has disconnected.
+                    String opponentId = userId.equals(game.getRedPlayerId()) ? game.getBlackPlayerId() : game.getRedPlayerId();
+                    WebSocketSession oppSession = activeSessions.get(opponentId);
+                    if (oppSession != null && oppSession.isOpen()) {
+                        sendJson(oppSession, Map.of(
+                            "messageType", "opponentDisconnected",
+                            "userId", userId
+                        ));
                     }
                 }
 
@@ -145,11 +142,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (userOpt.isPresent() && userOpt.get().getPasswordHash().equals(hashPassword(password))) {
             activeSessions.put(username, session);
             sessionUserMap.put(session, username);
+            Game activeGame = gameService.getGameForPlayer(username);
+            String activeGameId = (activeGame != null && (activeGame.getStatus() == GameStatus.PLAYING || activeGame.getStatus() == com.jeiqi.model.GameStatus.WAITING)) ? activeGame.getId() : "";
             sendJson(session, Map.of(
                 "messageType", "loginResult",
                 "success", true,
                 "message", "ok",
-                "userId", username
+                "userId", username,
+                "activeGameId", activeGameId
             ));
         } else {
             sendJson(session, Map.of(
@@ -820,18 +820,21 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             moveHistoryList.add(mMap);
         }
 
-        sendJson(session, Map.of(
-            "messageType", "boardState",
-            "roomId", game.getId(),
-            "status", game.getStatus().name(),
-            "redPlayerName", game.getRedPlayerName() != null ? game.getRedPlayerName() : "",
-            "blackPlayerName", game.getBlackPlayerName() != null ? game.getBlackPlayerName() : "",
-            "currentTurn", game.getCurrentTurn() != null ? game.getCurrentTurn().name().toLowerCase() : "red",
-            "mySide", mySide != null ? mySide : "spectator",
-            "pieces", piecesList,
-            "capturedPieces", capturedList,
-            "moveHistory", moveHistoryList
-        ));
+        int remainingSeconds = gameService.getRemainingSeconds(game.getId());
+        Map<String, Object> stateMap = new HashMap<>();
+        stateMap.put("messageType", "boardState");
+        stateMap.put("roomId", game.getId());
+        stateMap.put("status", game.getStatus().name());
+        stateMap.put("redPlayerName", game.getRedPlayerName() != null ? game.getRedPlayerName() : "");
+        stateMap.put("blackPlayerName", game.getBlackPlayerName() != null ? game.getBlackPlayerName() : "");
+        stateMap.put("currentTurn", game.getCurrentTurn() != null ? game.getCurrentTurn().name().toLowerCase() : "red");
+        stateMap.put("mySide", mySide != null ? mySide : "spectator");
+        stateMap.put("pieces", piecesList);
+        stateMap.put("capturedPieces", capturedList);
+        stateMap.put("moveHistory", moveHistoryList);
+        stateMap.put("remainingSeconds", remainingSeconds);
+
+        sendJson(session, stateMap);
     }
 
     private void handleSendChat(WebSocketSession session, Map<String, Object> msg) throws IOException {

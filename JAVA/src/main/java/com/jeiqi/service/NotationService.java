@@ -9,9 +9,11 @@ import java.util.Optional;
 public class NotationService {
 
     private final NotationRepository notationRepository;
+    private final com.jeiqi.repository.GameRepository gameRepository;
 
-    public NotationService(NotationRepository notationRepository) {
+    public NotationService(NotationRepository notationRepository, com.jeiqi.repository.GameRepository gameRepository) {
         this.notationRepository = notationRepository;
+        this.gameRepository = gameRepository;
     }
 
     public GameNotation saveNotation(GameNotation notation) {
@@ -23,6 +25,13 @@ public class NotationService {
     }
 
     public List<GameNotation> listNotations() {
-        return notationRepository.findAll();
+        return notationRepository.findAllByOrderByGameDateDesc();
+    }
+
+    public void clearAllNotations() {
+        // 优先清空对局表以释放外键约束关联
+        gameRepository.deleteAll();
+        // 随后清空棋谱表与历史走子记录
+        notationRepository.deleteAll();
     }
 }

@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface NotationRepository extends JpaRepository<GameNotation, String> {
     Optional<GameNotation> findByGameId(String gameId);
+    java.util.List<GameNotation> findAllByOrderByGameDateDesc();
 }

@@ -32,3 +32,10 @@ export async function getNotation(gameId: string) {
   const res = await fetch(`${BASE}/notations/${gameId}`)
   return res.json()
 }
+
+export async function clearNotations() {
+  const res = await fetch(`${BASE}/notations`, {
+    method: 'DELETE'
+  })
+  return res.ok
+}

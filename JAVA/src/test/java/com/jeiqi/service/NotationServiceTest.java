@@ -24,11 +24,14 @@ class NotationServiceTest {
     @Mock
     private NotationRepository notationRepository;
 
+    @Mock
+    private com.jeiqi.repository.GameRepository gameRepository;
+
     private NotationService notationService;
 
     @BeforeEach
     void setUp() {
-        notationService = new NotationService(notationRepository);
+        notationService = new NotationService(notationRepository, gameRepository);
     }
 
     @Test

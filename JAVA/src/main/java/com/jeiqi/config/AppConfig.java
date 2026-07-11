@@ -46,7 +46,7 @@ public class AppConfig {
     }
 
     @Bean
-    public NotationService notationService(NotationRepository notationRepository) {
-        return new NotationService(notationRepository);
+    public NotationService notationService(NotationRepository notationRepository, GameRepository gameRepository) {
+        return new NotationService(notationRepository, gameRepository);
     }
 }
